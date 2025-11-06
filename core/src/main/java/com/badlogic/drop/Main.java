@@ -42,6 +42,7 @@ public class Main implements ApplicationListener {
         }
     }
 
+    //not important right now even with warnings
     @Override
     public void resize(int width, int height) {
         if (width <= 0 || height <= 0) return;
