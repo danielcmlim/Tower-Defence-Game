@@ -50,27 +50,40 @@ public class Main implements ApplicationListener {
     private Skin skin;
     private BitmapFont font;
 
+    private Texture enemyTex;
+    private float ex, ey;
+    private float enemyW = 28, enemyH = 28;
+    private float enemySpeed = 60f;
+    private int enemyContactDamage = 10;
+    private boolean enemyAlive = false;
+
+    private float enemyRespawnTimer = 1.5f;
+    private float enemyRespawnDelay = 2.0f;
+
+
+
+
     @Override
     public void create() {
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
 
-        // Player texture or white placeholder
+        // player setup (white box substitute since there is no sprite)
         try {
             playerTex = new Texture("player.png");
         } catch (Exception e) {
             playerTex = solid(32, 32, Color.WHITE);
         }
 
-        // Base placeholder texture (blue block)
+        // base setup
         baseTex = solid((int)baseW, (int)baseH, new Color(0.2f, 0.5f, 1f, 1f));
 
-        // --- Minimal UI skin built in code (no external assets) ---
+        // Minimal UI skin built in code (no external assets)
         stage = new Stage(new ScreenViewport());
         font = new BitmapFont();
         skin = new Skin();
 
-        // Button background drawables
+        // button setup
         Texture upTex   = solid(150, 40, new Color(0.18f, 0.18f, 0.18f, 1f));
         Texture downTex = solid(150, 40, new Color(0.12f, 0.12f, 0.12f, 1f));
         Texture overTex = solid(150, 40, new Color(0.24f, 0.24f, 0.24f, 1f));
@@ -78,6 +91,14 @@ public class Main implements ApplicationListener {
         skin.add("down", downTex);
         skin.add("over", overTex);
         skin.add("font", font);
+
+        //enemy setup
+        Pixmap epm = new Pixmap((int)enemyW, (int)enemyH, Pixmap.Format.RGBA8888);
+        epm.setColor(1f, 0.2f, 0.2f, 1f);
+        epm.fill();
+        enemyTex = new Texture(epm);
+        epm.dispose();
+
 
         TextButton.TextButtonStyle tbs = new TextButton.TextButtonStyle();
         tbs.up   = skin.newDrawable("up");
@@ -130,6 +151,14 @@ public class Main implements ApplicationListener {
         stage.getViewport().update(width, height, true);
     }
 
+
+    private void spawnEnemy() {
+        float screenW = Gdx.graphics.getWidth();
+        ex = screenW - enemyW - 10;
+        ey = GROUND_Y;
+        enemyAlive = true;
+    }
+
     @Override
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
@@ -162,6 +191,26 @@ public class Main implements ApplicationListener {
             onGround = true;
         }
 
+        if (!enemyAlive) {
+            enemyRespawnTimer -= dt;
+            if (enemyRespawnTimer <= 0f) {
+                spawnEnemy();
+            }
+        } else {
+            ex -= enemySpeed * dt;
+
+            boolean touchesBase =
+                ex <= (baseX + baseW) &&
+                    (ey < baseY + baseH) && ((ey + enemyH) > baseY);
+
+            if (touchesBase) {
+                baseHp = MathUtils.clamp(baseHp - enemyContactDamage, 0, baseHpMax);
+                enemyAlive = false;
+                enemyRespawnTimer = enemyRespawnDelay;
+            }
+        }
+
+
         stage.act(dt);
 
         ScreenUtils.clear(0, 0, 0, 1);
@@ -169,9 +218,13 @@ public class Main implements ApplicationListener {
         batch.begin();
         batch.draw(baseTex, baseX, baseY, baseW, baseH);
         batch.draw(playerTex, px, py);
+
+        if (enemyAlive) {
+            batch.draw(enemyTex, ex, ey, enemyW, enemyH);
+        }
+
         batch.end();
 
-        // Draw health bar above base (background + foreground)
         float barWidth = 64f;
         float barHeight = 8f;
         float barX = baseX - 8;
@@ -181,7 +234,6 @@ public class Main implements ApplicationListener {
         float fgW = barWidth * pct;
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        // background
         shapes.setColor(0.15f, 0.15f, 0.15f, 1f);
         shapes.rect(barX, barY, barWidth, barHeight);
         // foreground (green→red as it shrinks could be added later; for now green)
@@ -190,7 +242,11 @@ public class Main implements ApplicationListener {
         shapes.end();
 
         stage.draw();
+
+
+
     }
+
 
     @Override public void pause() { }
     @Override public void resume() { }
