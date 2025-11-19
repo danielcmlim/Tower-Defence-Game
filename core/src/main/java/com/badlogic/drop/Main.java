@@ -19,6 +19,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.badlogic.gdx.math.Rectangle;
+
 
 public class Main implements ApplicationListener {
 
@@ -60,7 +62,24 @@ public class Main implements ApplicationListener {
     private float enemyRespawnTimer = 1.5f;
     private float enemyRespawnDelay = 2.0f;
 
+    // --- Player attack (melee) ---
+    private boolean attackActive = false;
+    private float attackTimer = 0f;
+    private float attackDuration = 0.15f;      // how long hitbox is active
+    private float attackCooldown = 0.30f;      // time between swings
+    private float attackCooldownTimer = 0f;
 
+    private float attackOffset = 24f;          // how far in front of player
+
+    private boolean facingRight = true;
+
+    private static final float PLAYER_W = 32f;
+    private static final float PLAYER_H = 32f;
+
+    private static final float ATTACK_W = 20f;
+    private static final float ATTACK_H = 24f;
+
+    private final Rectangle attackBounds = new Rectangle();
 
 
     @Override
@@ -166,10 +185,13 @@ public class Main implements ApplicationListener {
         boolean left  = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
         boolean jump  = Gdx.input.isKeyJustPressed(Input.Keys.UP);
+        boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
 
         if (left ^ right) {
             float dir = right ? 1f : -1f;
             vx += dir * MOVE_ACCEL * dt;
+            if (right) facingRight = true;
+            if (left)  facingRight = false;
         } else {
             if (vx > 0) vx = Math.max(0, vx - FRICTION * dt);
             else if (vx < 0) vx = Math.min(0, vx + FRICTION * dt);
@@ -191,6 +213,41 @@ public class Main implements ApplicationListener {
             onGround = true;
         }
 
+        // --- Attack timers ---
+        if (attackCooldownTimer > 0f) {
+            attackCooldownTimer -= dt;
+        }
+        if (attackTimer > 0f) {
+            attackTimer -= dt;
+            if (attackTimer <= 0f) {
+                attackActive = false;
+            }
+        }
+
+        if (attackKey && attackCooldownTimer <= 0f) {
+            attackActive = true;
+            attackTimer = attackDuration;
+            attackCooldownTimer = attackCooldown;
+        }
+
+        // Center the hitbox vertically on the player
+        float attackY = py + (PLAYER_H - ATTACK_H) / 2f;
+        float attackX;
+
+        if (facingRight) {
+            // Completely to the right of the player
+            attackX = px + PLAYER_W;
+        } else {
+            // Completely to the left of the player
+            attackX = px - ATTACK_W;
+        }
+
+        attackBounds.set(attackX, attackY, ATTACK_W, ATTACK_H);
+
+
+
+
+
         if (!enemyAlive) {
             enemyRespawnTimer -= dt;
             if (enemyRespawnTimer <= 0f) {
@@ -198,6 +255,22 @@ public class Main implements ApplicationListener {
             }
         } else {
             ex -= enemySpeed * dt;
+
+            // Check if attack hit enemy
+            if (attackActive && enemyAlive) {
+                boolean hitEnemy =
+                    attackBounds.x < ex + enemyW &&
+                        attackBounds.x + ATTACK_W > ex &&
+                        attackBounds.y < ey + enemyH &&
+                        attackBounds.y + ATTACK_H > ey;
+
+                if (hitEnemy) {
+                    enemyAlive = false;
+                    enemyRespawnTimer = enemyRespawnDelay;
+                }
+            }
+
+
 
             boolean touchesBase =
                 ex <= (baseX + baseW) &&
@@ -241,6 +314,14 @@ public class Main implements ApplicationListener {
         shapes.rect(barX, barY, fgW, barHeight);
         shapes.end();
 
+        if (attackActive) {
+            shapes.begin(ShapeRenderer.ShapeType.Line);
+            shapes.setColor(Color.YELLOW);
+            shapes.rect(attackBounds.x, attackBounds.y, attackBounds.width, attackBounds.height);
+            shapes.end();
+        }
+
+
         stage.draw();
 
 
@@ -260,5 +341,7 @@ public class Main implements ApplicationListener {
         if (stage != null) stage.dispose();
         if (skin != null) skin.dispose();
         if (font != null) font.dispose();
+        if (enemyTex != null) enemyTex.dispose();
+
     }
 }
