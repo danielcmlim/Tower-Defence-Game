@@ -54,15 +54,19 @@ public class Main implements ApplicationListener {
     private BitmapFont font;
 
     private Texture enemyTex;
-    private float ex, ey;
     private float enemyW = 28, enemyH = 28;
     private float enemySpeed = 60f;
     private int enemyContactDamage = 10;
-    private boolean enemyAlive = false;
 
-    private float evy = 0f;   // enemy vertical velocity
-    private float enemyRespawnTimer = 1.5f;
-    private float enemyRespawnDelay = 2.0f;
+    private static class Enemy {
+        float x, y;
+        float vy;     // vertical velocity
+    }
+
+    private Array<Enemy> enemies = new Array<>();
+    private float enemySpawnTimer = 0f;
+    private float enemySpawnInterval = 1.5f;   // seconds between spawns
+
 
     // --- Player attack (melee) ---
     private boolean attackActive = false;
@@ -106,9 +110,9 @@ public class Main implements ApplicationListener {
         platforms.add(new Platform(440, GROUND_Y + 120, 200, 8));  // top platform
 
         laneY = new float[] {
-            GROUND_Y,             // ground lane
-            GROUND_Y + 80,        // same Y as middle platform enemies
-            GROUND_Y + 160        // same Y as top platform enemies
+            GROUND_Y,                              // ground lane
+            platforms.get(0).y + platforms.get(0).h, // middle platform top
+            platforms.get(1).y + platforms.get(1).h  // top platform top
         };
 
         // Minimal UI skin built in code (no external assets)
@@ -193,13 +197,17 @@ public class Main implements ApplicationListener {
 
     private void spawnEnemy() {
         float screenW = Gdx.graphics.getWidth();
-        float screenH = Gdx.graphics.getHeight();
 
-        ex = screenW - enemyW - 10;              // start near the right edge
-        ey = screenH;                            // start at top of screen
-        evy = 0f;                                // falling from rest
-        enemyAlive = true;
+        int lane = MathUtils.random(0, laneY.length - 1);
+        float startY = laneY[lane];
+
+        Enemy e = new Enemy();
+        e.x  = screenW - enemyW - 10;  // near right edge
+        e.y  = startY;                 // on that lane surface
+        e.vy = 0f;                     // start at rest
+        enemies.add(e);
     }
+
 
 
     // --- Floating damage numbers ---
@@ -343,32 +351,33 @@ public class Main implements ApplicationListener {
 
 
 
+        enemySpawnTimer -= dt;
+        if (enemySpawnTimer <= 0f) {
+            spawnEnemy();
+            enemySpawnTimer = enemySpawnInterval;
+        }
+        // Update all enemies
+        for (int i = enemies.size - 1; i >= 0; i--) {
+            Enemy e = enemies.get(i);
 
+            float prevEy = e.y;
 
-        if (!enemyAlive) {
-            enemyRespawnTimer -= dt;
-            if (enemyRespawnTimer <= 0f) {
-                spawnEnemy();
+            // Gravity + vertical movement
+            e.vy += GRAVITY * dt;
+            e.y  += e.vy * dt;
+
+            // Ground collision
+            if (e.y <= GROUND_Y) {
+                e.y = GROUND_Y;
+                e.vy = 0f;
             }
-        } else {
-            float prevEy = ey;
 
-            // gravity + integrate
-            evy += GRAVITY * dt;
-            ey  += evy * dt;
-
-            // 1) collide with ground
-            if (ey <= GROUND_Y) {
-                ey = GROUND_Y;
-                evy = 0f;
-            }
-
-            // 2) collide with platforms (only when falling)
-            if (evy <= 0f) {
+            // Platform collision (only when falling)
+            if (e.vy <= 0f) {
                 float enemyBottomPrev = prevEy;
-                float enemyBottomNow  = ey;
-                float enemyLeft       = ex;
-                float enemyRight      = ex + enemyW;
+                float enemyBottomNow  = e.y;
+                float enemyLeft       = e.x;
+                float enemyRight      = e.x + enemyW;
 
                 for (Platform p : platforms) {
                     float platTop = p.y + p.h;
@@ -377,41 +386,49 @@ public class Main implements ApplicationListener {
                     boolean overlapX    = enemyRight > p.x && enemyLeft < p.x + p.w;
 
                     if (wasAbove && nowBelowTop && overlapX) {
-                        ey = platTop;
-                        evy = 0f;
+                        e.y = platTop;
+                        e.vy = 0f;
                         break;
                     }
                 }
             }
 
-            // --- Horizontal movement toward base ---
-            ex -= enemySpeed * dt;
+            // Horizontal move toward base
+            e.x -= enemySpeed * dt;
 
-            // Check if attack hit enemy
-            if (attackActive && enemyAlive) {
+            // Attack collision
+            if (attackActive) {
                 boolean hitEnemy =
-                    attackBounds.x < ex + enemyW &&
-                        attackBounds.x + ATTACK_W > ex &&
-                        attackBounds.y < ey + enemyH &&
-                        attackBounds.y + ATTACK_H > ey;
+                    attackBounds.x < e.x + enemyW &&
+                        attackBounds.x + ATTACK_W > e.x &&
+                        attackBounds.y < e.y + enemyH &&
+                        attackBounds.y + ATTACK_H > e.y;
 
                 if (hitEnemy) {
-                    addDamageText(ex + enemyW / 2f, ey + enemyH + 10f, -10);
-                    enemyAlive = false;
-                    enemyRespawnTimer = enemyRespawnDelay;
+                    addDamageText(e.x + enemyW / 2f, e.y + enemyH + 10f, -10);
+                    enemies.removeIndex(i);
+                    continue; // go to next enemy
                 }
             }
 
+            // Base collision
             boolean touchesBase =
-                ex <= (baseX + baseW) &&
-                    (ey < baseY + baseH) && ((ey + enemyH) > baseY);
+                e.x <= (baseX + baseW) &&
+                    (e.y < baseY + baseH) && ((e.y + enemyH) > baseY);
 
             if (touchesBase) {
                 changeBaseHp(-enemyContactDamage);
-                enemyAlive = false;
-                enemyRespawnTimer = enemyRespawnDelay;
+                enemies.removeIndex(i);
+                continue;
+            }
+
+            // Off-screen to the left, clean up
+            if (e.x + enemyW < 0) {
+                enemies.removeIndex(i);
             }
         }
+
+
 
         stage.act(dt);
 
@@ -421,8 +438,8 @@ public class Main implements ApplicationListener {
         batch.draw(baseTex, baseX, baseY, baseW, baseH);
         batch.draw(playerTex, px, py);
 
-        if (enemyAlive) {
-            batch.draw(enemyTex, ex, ey, enemyW, enemyH);
+        for (Enemy e : enemies) {
+            batch.draw(enemyTex, e.x, e.y, enemyW, enemyH);
         }
 
         for (DamageText d : damageTexts) {
