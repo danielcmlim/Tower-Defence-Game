@@ -20,6 +20,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.Array;
 
 
 public class Main implements ApplicationListener {
@@ -161,8 +162,14 @@ public class Main implements ApplicationListener {
     }
 
     private void changeBaseHp(int delta) {
+        if (delta == 0) return;
+
         baseHp = MathUtils.clamp(baseHp + delta, 0, baseHpMax);
+        float centerX = baseX + baseW / 2f;
+        float centerY = baseY + baseH + 18f;
+        addDamageText(centerX, centerY, delta);
     }
+
 
     @Override
     public void resize(int width, int height) {
@@ -177,6 +184,31 @@ public class Main implements ApplicationListener {
         ey = GROUND_Y;
         enemyAlive = true;
     }
+    // --- Floating damage numbers ---
+    private static class DamageText {
+        float x, y;
+        String text;
+        float life;      // seconds remaining
+        float vy;        // vertical speed
+
+        DamageText(float x, float y, String text, float life, float vy) {
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.life = life;
+            this.vy = vy;
+        }
+    }
+
+    private Array<DamageText> damageTexts = new Array<>();
+
+    private void addDamageText(float x, float y, int amount) {
+        // Example: show "-10"
+        String t = (amount >= 0 ? "+" : "") + amount;
+        // Life = 0.7s, speed = 40 px/s upward
+        damageTexts.add(new DamageText(x, y, t, 0.7f, 40f));
+    }
+
 
     @Override
     public void render() {
@@ -212,6 +244,16 @@ public class Main implements ApplicationListener {
             vy = 0;
             onGround = true;
         }
+        // Update floating damage texts
+        for (int i = damageTexts.size - 1; i >= 0; i--) {
+            DamageText d = damageTexts.get(i);
+            d.life -= dt;
+            d.y += d.vy * dt;
+            if (d.life <= 0f) {
+                damageTexts.removeIndex(i);
+            }
+        }
+
 
         // --- Attack timers ---
         if (attackCooldownTimer > 0f) {
@@ -265,6 +307,7 @@ public class Main implements ApplicationListener {
                         attackBounds.y + ATTACK_H > ey;
 
                 if (hitEnemy) {
+                    addDamageText(ex + enemyW / 2f, ey + enemyH + 10f, -10);
                     enemyAlive = false;
                     enemyRespawnTimer = enemyRespawnDelay;
                 }
@@ -277,7 +320,7 @@ public class Main implements ApplicationListener {
                     (ey < baseY + baseH) && ((ey + enemyH) > baseY);
 
             if (touchesBase) {
-                baseHp = MathUtils.clamp(baseHp - enemyContactDamage, 0, baseHpMax);
+                changeBaseHp(-enemyContactDamage);
                 enemyAlive = false;
                 enemyRespawnTimer = enemyRespawnDelay;
             }
@@ -296,7 +339,23 @@ public class Main implements ApplicationListener {
             batch.draw(enemyTex, ex, ey, enemyW, enemyH);
         }
 
+        for (DamageText d : damageTexts) {
+            float alpha = MathUtils.clamp(d.life / 0.7f, 0f, 1f);
+
+            // If
+            if (d.text.startsWith("-")) {
+                font.setColor(1f, 0.3f, 0.3f, alpha);   // red for damage
+            } else {
+                font.setColor(0.3f, 1f, 0.3f, alpha);   // green for heal
+            }
+
+            font.draw(batch, d.text, d.x, d.y);
+        }
+        font.setColor(Color.WHITE);
+        font.setColor(Color.WHITE);
+
         batch.end();
+
 
         float barWidth = 64f;
         float barHeight = 8f;
