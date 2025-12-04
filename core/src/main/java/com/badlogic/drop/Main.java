@@ -60,6 +60,7 @@ public class Main implements ApplicationListener {
     private int enemyContactDamage = 10;
     private boolean enemyAlive = false;
 
+    private float evy = 0f;   // enemy vertical velocity
     private float enemyRespawnTimer = 1.5f;
     private float enemyRespawnDelay = 2.0f;
 
@@ -80,6 +81,8 @@ public class Main implements ApplicationListener {
     private static final float ATTACK_W = 20f;
     private static final float ATTACK_H = 24f;
 
+    private float[] laneY;
+
     private final Rectangle attackBounds = new Rectangle();
 
 
@@ -97,6 +100,16 @@ public class Main implements ApplicationListener {
 
         // base setup
         baseTex = solid((int)baseW, (int)baseH, new Color(0.2f, 0.5f, 1f, 1f));
+        float screenW = Gdx.graphics.getWidth();
+
+        platforms.add(new Platform(340, GROUND_Y + 50, 300, 8));   // middle platform
+        platforms.add(new Platform(440, GROUND_Y + 120, 200, 8));  // top platform
+
+        laneY = new float[] {
+            GROUND_Y,             // ground lane
+            GROUND_Y + 80,        // same Y as middle platform enemies
+            GROUND_Y + 160        // same Y as top platform enemies
+        };
 
         // Minimal UI skin built in code (no external assets)
         stage = new Stage(new ScreenViewport());
@@ -180,10 +193,15 @@ public class Main implements ApplicationListener {
 
     private void spawnEnemy() {
         float screenW = Gdx.graphics.getWidth();
-        ex = screenW - enemyW - 10;
-        ey = GROUND_Y;
+        float screenH = Gdx.graphics.getHeight();
+
+        ex = screenW - enemyW - 10;              // start near the right edge
+        ey = screenH;                            // start at top of screen
+        evy = 0f;                                // falling from rest
         enemyAlive = true;
     }
+
+
     // --- Floating damage numbers ---
     private static class DamageText {
         float x, y;
@@ -199,6 +217,15 @@ public class Main implements ApplicationListener {
             this.vy = vy;
         }
     }
+    private static class Platform {
+        float x, y, w, h;
+        Platform(float x, float y, float w, float h) {
+            this.x = x; this.y = y; this.w = w; this.h = h;
+        }
+    }
+
+    private Array<Platform> platforms = new Array<>();
+
 
     private Array<DamageText> damageTexts = new Array<>();
 
@@ -235,15 +262,43 @@ public class Main implements ApplicationListener {
             onGround = false;
         }
 
+// remember where we were last frame (bottom of player)
+        float prevPy = py;
+
+// apply gravity and integrate
         vy += GRAVITY * dt;
         px += vx * dt;
         py += vy * dt;
+
+        onGround = false;
 
         if (py <= GROUND_Y) {
             py = GROUND_Y;
             vy = 0;
             onGround = true;
         }
+
+        if (vy <= 0f) {
+            float playerBottomPrev = prevPy;
+            float playerBottomNow  = py;
+            float playerLeft       = px;
+            float playerRight      = px + PLAYER_W;
+
+            for (Platform p : platforms) {
+                float platTop = p.y + p.h;
+                boolean wasAbove    = playerBottomPrev >= platTop;
+                boolean nowBelowTop = playerBottomNow <= platTop;
+                boolean overlapX    = playerRight > p.x && playerLeft < p.x + p.w;
+
+                if (wasAbove && nowBelowTop && overlapX) {
+                    py = platTop;
+                    vy = 0;
+                    onGround = true;
+                    break;
+                }
+            }
+        }
+
         // Update floating damage texts
         for (int i = damageTexts.size - 1; i >= 0; i--) {
             DamageText d = damageTexts.get(i);
@@ -296,6 +351,40 @@ public class Main implements ApplicationListener {
                 spawnEnemy();
             }
         } else {
+            float prevEy = ey;
+
+            // gravity + integrate
+            evy += GRAVITY * dt;
+            ey  += evy * dt;
+
+            // 1) collide with ground
+            if (ey <= GROUND_Y) {
+                ey = GROUND_Y;
+                evy = 0f;
+            }
+
+            // 2) collide with platforms (only when falling)
+            if (evy <= 0f) {
+                float enemyBottomPrev = prevEy;
+                float enemyBottomNow  = ey;
+                float enemyLeft       = ex;
+                float enemyRight      = ex + enemyW;
+
+                for (Platform p : platforms) {
+                    float platTop = p.y + p.h;
+                    boolean wasAbove    = enemyBottomPrev >= platTop;
+                    boolean nowBelowTop = enemyBottomNow <= platTop;
+                    boolean overlapX    = enemyRight > p.x && enemyLeft < p.x + p.w;
+
+                    if (wasAbove && nowBelowTop && overlapX) {
+                        ey = platTop;
+                        evy = 0f;
+                        break;
+                    }
+                }
+            }
+
+            // --- Horizontal movement toward base ---
             ex -= enemySpeed * dt;
 
             // Check if attack hit enemy
@@ -313,8 +402,6 @@ public class Main implements ApplicationListener {
                 }
             }
 
-
-
             boolean touchesBase =
                 ex <= (baseX + baseW) &&
                     (ey < baseY + baseH) && ((ey + enemyH) > baseY);
@@ -325,7 +412,6 @@ public class Main implements ApplicationListener {
                 enemyRespawnTimer = enemyRespawnDelay;
             }
         }
-
 
         stage.act(dt);
 
@@ -366,12 +452,20 @@ public class Main implements ApplicationListener {
         float fgW = barWidth * pct;
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
+
         shapes.setColor(0.15f, 0.15f, 0.15f, 1f);
         shapes.rect(barX, barY, barWidth, barHeight);
-        // foreground (green→red as it shrinks could be added later; for now green)
+
         shapes.setColor(0.2f, 0.85f, 0.3f, 1f);
         shapes.rect(barX, barY, fgW, barHeight);
+
+        shapes.setColor(0.35f, 0.35f, 0.35f, 1f);
+        for (Platform p : platforms) {
+            shapes.rect(p.x, p.y, p.w, p.h);
+        }
+
         shapes.end();
+
 
         if (attackActive) {
             shapes.begin(ShapeRenderer.ShapeType.Line);
