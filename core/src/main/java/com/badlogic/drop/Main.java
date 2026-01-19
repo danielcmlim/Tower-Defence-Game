@@ -4,24 +4,19 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
-
 
 public class Main implements ApplicationListener {
 
@@ -29,11 +24,10 @@ public class Main implements ApplicationListener {
     private ShapeRenderer shapes;
 
     private Texture playerTex;
-    private float px = 160, py = 64;   // position
-    private float vx = 0,   vy = 0;    // velocity
+    private float px = 160, py = 64;
+    private float vx = 0, vy = 0;
     private boolean onGround = true;
 
-    // Tunables
     private static final float GROUND_Y   = 64f;
     private static final float MOVE_ACCEL = 900f;
     private static final float MOVE_MAX   = 220f;
@@ -41,9 +35,8 @@ public class Main implements ApplicationListener {
     private static final float GRAVITY    = -900f;
     private static final float JUMP_VY    = 380f;
 
-    // --- Base placeholder + HP ---
     private Texture baseTex;
-    private float baseX = 40, baseY = GROUND_Y; // left side “base”
+    private float baseX = 40, baseY = GROUND_Y;
     private float baseW = 48, baseH = 32;
 
     private int baseHp = 100;
@@ -57,27 +50,17 @@ public class Main implements ApplicationListener {
     private float enemyW = 28, enemyH = 28;
     private float enemySpeed = 60f;
     private int enemyContactDamage = 10;
+    private float enemySpawnInterval = 1.5f;
 
-    private static class Enemy {
-        float x, y;
-        float vy;     // vertical velocity
-    }
-
-    private Array<Enemy> enemies = new Array<>();
-    private float enemySpawnTimer = 0f;
-    private float enemySpawnInterval = 1.5f;   // seconds between spawns
-
-
-    // --- Player attack (melee) ---
     private boolean attackActive = false;
     private float attackTimer = 0f;
-    private float attackDuration = 0.15f;      // how long hitbox is active
-    private float attackCooldown = 0.30f;      // time between swings
+    private float attackDuration = 0.15f;
+    private float attackCooldown = 0.30f;
     private float attackCooldownTimer = 0f;
-
-    private float attackOffset = 24f;          // how far in front of player
+    private int attackDamage = 10;
 
     private boolean facingRight = true;
+    private boolean dropThroughPlatform = false;
 
     private static final float PLAYER_W = 32f;
     private static final float PLAYER_H = 32f;
@@ -85,86 +68,109 @@ public class Main implements ApplicationListener {
     private static final float ATTACK_W = 20f;
     private static final float ATTACK_H = 24f;
 
-    private float[] laneY;
-
     private final Rectangle attackBounds = new Rectangle();
 
+    private Array<Platform> platforms = new Array<>();
+    private float[] laneY;
+
+    private DamageTextSystem damageTextSystem;
+    private EnemySystem enemySystem;
+    private ShopSystem shopSystem;
+    private ProjectileSystem projectileSystem;
+    private ParticleSystem particleSystem;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
 
-        // player setup (white box substitute since there is no sprite)
         try {
             playerTex = new Texture("player.png");
         } catch (Exception e) {
             playerTex = solid(32, 32, Color.WHITE);
         }
 
-        // base setup
-        baseTex = solid((int)baseW, (int)baseH, new Color(0.2f, 0.5f, 1f, 1f));
-        float screenW = Gdx.graphics.getWidth();
+        baseTex = solid((int) baseW, (int) baseH, new Color(0.2f, 0.5f, 1f, 1f));
 
-        platforms.add(new Platform(340, GROUND_Y + 50, 300, 8));   // middle platform
-        platforms.add(new Platform(440, GROUND_Y + 120, 200, 8));  // top platform
+        platforms.add(new Platform(340, GROUND_Y + 50, 300, 8));
+        platforms.add(new Platform(440, GROUND_Y + 120, 200, 8));
 
         laneY = new float[] {
-            GROUND_Y,                              // ground lane
-            platforms.get(0).y + platforms.get(0).h, // middle platform top
-            platforms.get(1).y + platforms.get(1).h  // top platform top
+            GROUND_Y,
+            platforms.get(0).top(),
+            platforms.get(1).top()
         };
 
-        // Minimal UI skin built in code (no external assets)
         stage = new Stage(new ScreenViewport());
         font = new BitmapFont();
         skin = new Skin();
 
-        // button setup
         Texture upTex   = solid(150, 40, new Color(0.18f, 0.18f, 0.18f, 1f));
         Texture downTex = solid(150, 40, new Color(0.12f, 0.12f, 0.12f, 1f));
         Texture overTex = solid(150, 40, new Color(0.24f, 0.24f, 0.24f, 1f));
-        skin.add("up",   upTex);
+        skin.add("up", upTex);
         skin.add("down", downTex);
         skin.add("over", overTex);
         skin.add("font", font);
 
-        //enemy setup
-        Pixmap epm = new Pixmap((int)enemyW, (int)enemyH, Pixmap.Format.RGBA8888);
+        Pixmap epm = new Pixmap((int) enemyW, (int) enemyH, Pixmap.Format.RGBA8888);
         epm.setColor(1f, 0.2f, 0.2f, 1f);
         epm.fill();
         enemyTex = new Texture(epm);
         epm.dispose();
 
-
         TextButton.TextButtonStyle tbs = new TextButton.TextButtonStyle();
-        tbs.up   = skin.newDrawable("up");
+        tbs.up = skin.newDrawable("up");
         tbs.down = skin.newDrawable("down");
         tbs.over = skin.newDrawable("over");
         tbs.font = font;
         tbs.fontColor = Color.WHITE;
         skin.add("default", tbs);
 
-        TextButton damageBtn = new TextButton("Damage -10", skin);
-        TextButton healBtn   = new TextButton("Heal +10", skin);
+        damageTextSystem = new DamageTextSystem();
+        enemySystem = new EnemySystem(enemyTex, enemyW, enemyH, enemySpeed, enemyContactDamage, enemySpawnInterval);
+        enemySystem.startFirstWave();
 
-        damageBtn.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event, float x, float y) {
-                changeBaseHp(-10);
+        projectileSystem = new ProjectileSystem();
+        particleSystem = new ParticleSystem();
+
+        shopSystem = new ShopSystem(stage, skin, new ShopSystem.ShopCallback() {
+            @Override
+            public void onRangedAttackPurchased() {
+                System.out.println("You can now shoot projectiles with K!");
+            }
+
+            @Override
+            public void onFasterAttackPurchased() {
+                attackCooldown = 0.15f; // Reduced from 0.30f
+                System.out.println("Attack cooldown reduced!");
+            }
+
+            @Override
+            public void onStrongerAttackPurchased() {
+                attackDamage = 15; // Increased from 10
+                System.out.println("Attack damage increased!");
+            }
+
+            @Override
+            public void onRepairBase() {
+                int healAmount = baseHpMax - baseHp;
+                baseHp = baseHpMax;
+                float centerX = baseX + baseW / 2f;
+                float centerY = baseY + baseH + 18f;
+                damageTextSystem.add(centerX, centerY, healAmount);
+            }
+
+            @Override
+            public int getBaseHp() {
+                return baseHp;
+            }
+
+            @Override
+            public int getBaseHpMax() {
+                return baseHpMax;
             }
         });
-        healBtn.addListener(new ClickListener() {
-            @Override public void clicked(InputEvent event, float x, float y) {
-                changeBaseHp(+10);
-            }
-        });
-
-        Table root = new Table();
-        root.setFillParent(true);
-        root.bottom().right().pad(12);
-        root.add(damageBtn).pad(6);
-        root.add(healBtn).pad(6);
-        stage.addActor(root);
 
         Gdx.input.setInputProcessor(stage);
     }
@@ -182,11 +188,11 @@ public class Main implements ApplicationListener {
         if (delta == 0) return;
 
         baseHp = MathUtils.clamp(baseHp + delta, 0, baseHpMax);
+
         float centerX = baseX + baseW / 2f;
         float centerY = baseY + baseH + 18f;
-        addDamageText(centerX, centerY, delta);
+        damageTextSystem.add(centerX, centerY, delta);
     }
-
 
     @Override
     public void resize(int width, int height) {
@@ -194,241 +200,146 @@ public class Main implements ApplicationListener {
         stage.getViewport().update(width, height, true);
     }
 
-
-    private void spawnEnemy() {
-        float screenW = Gdx.graphics.getWidth();
-
-        int lane = MathUtils.random(0, laneY.length - 1);
-        float startY = laneY[lane];
-
-        Enemy e = new Enemy();
-        e.x  = screenW - enemyW - 10;  // near right edge
-        e.y  = startY;                 // on that lane surface
-        e.vy = 0f;                     // start at rest
-        enemies.add(e);
-    }
-
-
-
-    // --- Floating damage numbers ---
-    private static class DamageText {
-        float x, y;
-        String text;
-        float life;      // seconds remaining
-        float vy;        // vertical speed
-
-        DamageText(float x, float y, String text, float life, float vy) {
-            this.x = x;
-            this.y = y;
-            this.text = text;
-            this.life = life;
-            this.vy = vy;
-        }
-    }
-    private static class Platform {
-        float x, y, w, h;
-        Platform(float x, float y, float w, float h) {
-            this.x = x; this.y = y; this.w = w; this.h = h;
-        }
-    }
-
-    private Array<Platform> platforms = new Array<>();
-
-
-    private Array<DamageText> damageTexts = new Array<>();
-
-    private void addDamageText(float x, float y, int amount) {
-        // Example: show "-10"
-        String t = (amount >= 0 ? "+" : "") + amount;
-        // Life = 0.7s, speed = 40 px/s upward
-        damageTexts.add(new DamageText(x, y, t, 0.7f, 40f));
-    }
-
-
     @Override
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
 
-        boolean left  = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
-        boolean right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
-        boolean jump  = Gdx.input.isKeyJustPressed(Input.Keys.UP);
-        boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
-
-        if (left ^ right) {
-            float dir = right ? 1f : -1f;
-            vx += dir * MOVE_ACCEL * dt;
-            if (right) facingRight = true;
-            if (left)  facingRight = false;
-        } else {
-            if (vx > 0) vx = Math.max(0, vx - FRICTION * dt);
-            else if (vx < 0) vx = Math.min(0, vx + FRICTION * dt);
+        // Check for shop toggle
+        if (Gdx.input.isKeyJustPressed(Input.Keys.S) || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            shopSystem.toggle();
         }
-        vx = MathUtils.clamp(vx, -MOVE_MAX, MOVE_MAX);
 
-        if (jump && onGround) {
-            vy = JUMP_VY;
+        // Only process game input if shop is closed
+        if (!shopSystem.isOpen()) {
+            boolean left  = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
+            boolean right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+            boolean jump  = Gdx.input.isKeyJustPressed(Input.Keys.UP);
+            boolean down  = Gdx.input.isKeyPressed(Input.Keys.DOWN);
+            boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
+            boolean shootKey = Gdx.input.isKeyJustPressed(Input.Keys.K);
+
+            // Drop through platform when holding down
+            if (down && onGround && py > GROUND_Y) {
+                dropThroughPlatform = true;
+                py -= 5f; // Drop slightly to trigger fall
+                onGround = false;
+            } else if (!down) {
+                dropThroughPlatform = false;
+            }
+
+            if (left ^ right) {
+                float dir = right ? 1f : -1f;
+                vx += dir * MOVE_ACCEL * dt;
+                if (right) facingRight = true;
+                if (left)  facingRight = false;
+            } else {
+                if (vx > 0) vx = Math.max(0, vx - FRICTION * dt);
+                else if (vx < 0) vx = Math.min(0, vx + FRICTION * dt);
+            }
+            vx = MathUtils.clamp(vx, -MOVE_MAX, MOVE_MAX);
+
+            if (jump && onGround) {
+                vy = JUMP_VY;
+                onGround = false;
+            }
+
+            float prevPy = py;
+
+            vy += GRAVITY * dt;
+            px += vx * dt;
+            py += vy * dt;
+
             onGround = false;
-        }
 
-// remember where we were last frame (bottom of player)
-        float prevPy = py;
-
-// apply gravity and integrate
-        vy += GRAVITY * dt;
-        px += vx * dt;
-        py += vy * dt;
-
-        onGround = false;
-
-        if (py <= GROUND_Y) {
-            py = GROUND_Y;
-            vy = 0;
-            onGround = true;
-        }
-
-        if (vy <= 0f) {
-            float playerBottomPrev = prevPy;
-            float playerBottomNow  = py;
-            float playerLeft       = px;
-            float playerRight      = px + PLAYER_W;
-
-            for (Platform p : platforms) {
-                float platTop = p.y + p.h;
-                boolean wasAbove    = playerBottomPrev >= platTop;
-                boolean nowBelowTop = playerBottomNow <= platTop;
-                boolean overlapX    = playerRight > p.x && playerLeft < p.x + p.w;
-
-                if (wasAbove && nowBelowTop && overlapX) {
-                    py = platTop;
-                    vy = 0;
-                    onGround = true;
-                    break;
-                }
-            }
-        }
-
-        // Update floating damage texts
-        for (int i = damageTexts.size - 1; i >= 0; i--) {
-            DamageText d = damageTexts.get(i);
-            d.life -= dt;
-            d.y += d.vy * dt;
-            if (d.life <= 0f) {
-                damageTexts.removeIndex(i);
-            }
-        }
-
-
-        // --- Attack timers ---
-        if (attackCooldownTimer > 0f) {
-            attackCooldownTimer -= dt;
-        }
-        if (attackTimer > 0f) {
-            attackTimer -= dt;
-            if (attackTimer <= 0f) {
-                attackActive = false;
-            }
-        }
-
-        if (attackKey && attackCooldownTimer <= 0f) {
-            attackActive = true;
-            attackTimer = attackDuration;
-            attackCooldownTimer = attackCooldown;
-        }
-
-        // Center the hitbox vertically on the player
-        float attackY = py + (PLAYER_H - ATTACK_H) / 2f;
-        float attackX;
-
-        if (facingRight) {
-            // Completely to the right of the player
-            attackX = px + PLAYER_W;
-        } else {
-            // Completely to the left of the player
-            attackX = px - ATTACK_W;
-        }
-
-        attackBounds.set(attackX, attackY, ATTACK_W, ATTACK_H);
-
-
-
-        enemySpawnTimer -= dt;
-        if (enemySpawnTimer <= 0f) {
-            spawnEnemy();
-            enemySpawnTimer = enemySpawnInterval;
-        }
-        // Update all enemies
-        for (int i = enemies.size - 1; i >= 0; i--) {
-            Enemy e = enemies.get(i);
-
-            float prevEy = e.y;
-
-            // Gravity + vertical movement
-            e.vy += GRAVITY * dt;
-            e.y  += e.vy * dt;
-
-            // Ground collision
-            if (e.y <= GROUND_Y) {
-                e.y = GROUND_Y;
-                e.vy = 0f;
+            if (py <= GROUND_Y) {
+                py = GROUND_Y;
+                vy = 0;
+                onGround = true;
             }
 
-            // Platform collision (only when falling)
-            if (e.vy <= 0f) {
-                float enemyBottomPrev = prevEy;
-                float enemyBottomNow  = e.y;
-                float enemyLeft       = e.x;
-                float enemyRight      = e.x + enemyW;
+            if (vy <= 0f) {
+                float playerBottomPrev = prevPy;
+                float playerBottomNow  = py;
+                float playerLeft = px;
+                float playerRight = px + PLAYER_W;
 
                 for (Platform p : platforms) {
-                    float platTop = p.y + p.h;
-                    boolean wasAbove    = enemyBottomPrev >= platTop;
-                    boolean nowBelowTop = enemyBottomNow <= platTop;
-                    boolean overlapX    = enemyRight > p.x && enemyLeft < p.x + p.w;
+                    // Skip platform collision if dropping through
+                    if (dropThroughPlatform) continue;
+
+                    float platTop = p.top();
+                    boolean wasAbove = playerBottomPrev >= platTop;
+                    boolean nowBelowTop = playerBottomNow <= platTop;
+                    boolean overlapX = playerRight > p.x && playerLeft < p.x + p.w;
 
                     if (wasAbove && nowBelowTop && overlapX) {
-                        e.y = platTop;
-                        e.vy = 0f;
+                        py = platTop;
+                        vy = 0;
+                        onGround = true;
                         break;
                     }
                 }
             }
 
-            // Horizontal move toward base
-            e.x -= enemySpeed * dt;
+            if (attackCooldownTimer > 0f) attackCooldownTimer -= dt;
 
-            // Attack collision
-            if (attackActive) {
-                boolean hitEnemy =
-                    attackBounds.x < e.x + enemyW &&
-                        attackBounds.x + ATTACK_W > e.x &&
-                        attackBounds.y < e.y + enemyH &&
-                        attackBounds.y + ATTACK_H > e.y;
-
-                if (hitEnemy) {
-                    addDamageText(e.x + enemyW / 2f, e.y + enemyH + 10f, -10);
-                    enemies.removeIndex(i);
-                    continue; // go to next enemy
-                }
+            if (attackTimer > 0f) {
+                attackTimer -= dt;
+                if (attackTimer <= 0f) attackActive = false;
             }
 
-            // Base collision
-            boolean touchesBase =
-                e.x <= (baseX + baseW) &&
-                    (e.y < baseY + baseH) && ((e.y + enemyH) > baseY);
-
-            if (touchesBase) {
-                changeBaseHp(-enemyContactDamage);
-                enemies.removeIndex(i);
-                continue;
+            // Melee attack (J key)
+            if (attackKey && attackCooldownTimer <= 0f) {
+                attackActive = true;
+                attackTimer = attackDuration;
+                attackCooldownTimer = attackCooldown;
             }
 
-            // Off-screen to the left, clean up
-            if (e.x + enemyW < 0) {
-                enemies.removeIndex(i);
+            // Ranged attack (K key) - only if purchased
+            if (shootKey && attackCooldownTimer <= 0f && shopSystem.hasRangedAttack()) {
+                float shootX = facingRight ? (px + PLAYER_W) : px;
+                float shootY = py + PLAYER_H / 2f;
+                projectileSystem.shoot(shootX, shootY, facingRight);
+                attackCooldownTimer = attackCooldown;
             }
+
+            float attackY = py + (PLAYER_H - ATTACK_H) / 2f;
+            float attackX = facingRight ? (px + PLAYER_W) : (px - ATTACK_W);
+            attackBounds.set(attackX, attackY, ATTACK_W, ATTACK_H);
         }
 
+        damageTextSystem.update(dt);
+        projectileSystem.update(dt, Gdx.graphics.getWidth());
+        particleSystem.update(dt);
 
+        enemySystem.updateAndSpawn(dt, laneY);
+
+        int baseDelta = enemySystem.updateEnemies(
+            dt,
+            GRAVITY,
+            GROUND_Y,
+            platforms,
+            baseX, baseY, baseW, baseH,
+            attackBounds,
+            attackActive,
+            damageTextSystem,
+            particleSystem,
+            attackDamage,
+            shopSystem
+        );
+
+        // Check projectile collisions
+        projectileSystem.checkCollisions(
+            enemySystem.getEnemies(),
+            enemyW,
+            enemyH,
+            damageTextSystem,
+            particleSystem,
+            attackDamage,
+            shopSystem
+        );
+
+        if (baseDelta != 0) changeBaseHp(baseDelta);
 
         stage.act(dt);
 
@@ -438,27 +349,27 @@ public class Main implements ApplicationListener {
         batch.draw(baseTex, baseX, baseY, baseW, baseH);
         batch.draw(playerTex, px, py);
 
-        for (Enemy e : enemies) {
-            batch.draw(enemyTex, e.x, e.y, enemyW, enemyH);
+        enemySystem.draw(batch);
+        projectileSystem.draw(batch);
+        particleSystem.draw(batch);
+
+        String waveText;
+        if (enemySystem.isInPrep()) {
+            waveText = "Wave " + (enemySystem.getWave() + 1) + " in " +
+                (int)Math.ceil(enemySystem.getPrepTimer()) + "s";
+        } else {
+            waveText = "Wave " + enemySystem.getWave() +
+                " | Alive: " + enemySystem.getAliveCount() +
+                " | Left to spawn: " + enemySystem.getRemainingToSpawn();
         }
 
-        for (DamageText d : damageTexts) {
-            float alpha = MathUtils.clamp(d.life / 0.7f, 0f, 1f);
+        font.draw(batch, waveText, 12, Gdx.graphics.getHeight() - 12);
+        font.draw(batch, "Controls: A/D - Move | UP - Jump | J - Melee | K - Shoot | S - Shop",
+            12, Gdx.graphics.getHeight() - 32);
 
-            // If
-            if (d.text.startsWith("-")) {
-                font.setColor(1f, 0.3f, 0.3f, alpha);   // red for damage
-            } else {
-                font.setColor(0.3f, 1f, 0.3f, alpha);   // green for heal
-            }
-
-            font.draw(batch, d.text, d.x, d.y);
-        }
-        font.setColor(Color.WHITE);
-        font.setColor(Color.WHITE);
+        damageTextSystem.draw(batch, font);
 
         batch.end();
-
 
         float barWidth = 64f;
         float barHeight = 8f;
@@ -483,7 +394,6 @@ public class Main implements ApplicationListener {
 
         shapes.end();
 
-
         if (attackActive) {
             shapes.begin(ShapeRenderer.ShapeType.Line);
             shapes.setColor(Color.YELLOW);
@@ -491,13 +401,8 @@ public class Main implements ApplicationListener {
             shapes.end();
         }
 
-
         stage.draw();
-
-
-
     }
-
 
     @Override public void pause() { }
     @Override public void resume() { }
@@ -512,6 +417,7 @@ public class Main implements ApplicationListener {
         if (skin != null) skin.dispose();
         if (font != null) font.dispose();
         if (enemyTex != null) enemyTex.dispose();
-
+        if (projectileSystem != null) projectileSystem.dispose();
+        if (particleSystem != null) particleSystem.dispose();
     }
 }
