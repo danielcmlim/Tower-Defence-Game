@@ -73,7 +73,7 @@ public class ParticleSystem {
             // Pulsing scale effect
             float scale = 1f + MathUtils.sin(p.life * 15f) * 0.2f;
 
-            Color oldColor = batch.getColor();
+            Color oldColor = new Color(batch.getColor());
             batch.setColor(1f, 1f, 1f, alpha);
 
             float size = 8f * scale;
