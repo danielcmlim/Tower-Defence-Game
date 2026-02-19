@@ -27,6 +27,8 @@ public class Main implements ApplicationListener {
     private float px = 160, py = 64;
     private float vx = 0, vy = 0;
     private boolean onGround = true;
+    private boolean facingRight = true;
+    private boolean dropThroughPlatform = false;
 
     private static final float GROUND_Y   = 64f;
     private static final float MOVE_ACCEL = 900f;
@@ -34,23 +36,10 @@ public class Main implements ApplicationListener {
     private static final float FRICTION   = 1400f;
     private static final float GRAVITY    = -900f;
     private static final float JUMP_VY    = 380f;
-
-    private Texture baseTex;
-    private float baseX = 40, baseY = GROUND_Y;
-    private float baseW = 48, baseH = 32;
-
-    private int baseHp = 100;
-    private int baseHpMax = 100;
-
-    private Stage stage;
-    private Skin skin;
-    private BitmapFont font;
-
-    private Texture enemyTex;
-    private float enemyW = 28, enemyH = 28;
-    private float enemySpeed = 60f;
-    private int enemyContactDamage = 10;
-    private float enemySpawnInterval = 1.5f;
+    private static final float PLAYER_W   = 32f;
+    private static final float PLAYER_H   = 32f;
+    private static final float ATTACK_W   = 20f;
+    private static final float ATTACK_H   = 24f;
 
     private boolean attackActive = false;
     private float attackTimer = 0f;
@@ -59,29 +48,37 @@ public class Main implements ApplicationListener {
     private float attackCooldownTimer = 0f;
     private int attackDamage = 10;
 
-    private boolean facingRight = true;
-    private boolean dropThroughPlatform = false;
-
-    private static final float PLAYER_W = 32f;
-    private static final float PLAYER_H = 32f;
-
-    private static final float ATTACK_W = 20f;
-    private static final float ATTACK_H = 24f;
-
     private final Rectangle attackBounds = new Rectangle();
+
+    private Texture baseTex;
+    private final float baseX = 40, baseY = GROUND_Y;
+    private final float baseW = 48, baseH = 32;
+    private int baseHp    = 100;
+    private int baseHpMax = 100;
+
+    private final float enemyW             = 28f;
+    private final float enemyH             = 28f;
+    private final float enemySpeed         = 60f;
+    private final int   enemyContactDamage = 10;
+    private final float enemySpawnInterval = 1.5f;
 
     private Array<Platform> platforms = new Array<>();
     private float[] laneY;
 
     private DamageTextSystem damageTextSystem;
-    private EnemySystem enemySystem;
-    private ShopSystem shopSystem;
+    private EnemySystem      enemySystem;
+    private ShopSystem       shopSystem;
     private ProjectileSystem projectileSystem;
-    private ParticleSystem particleSystem;
+    private ParticleSystem   particleSystem;
+
+    private Stage      stage;
+    private Skin       skin;
+    private BitmapFont font;
+    private Texture    enemyTex;
 
     @Override
     public void create() {
-        batch = new SpriteBatch();
+        batch  = new SpriteBatch();
         shapes = new ShapeRenderer();
 
         try {
@@ -92,7 +89,7 @@ public class Main implements ApplicationListener {
 
         baseTex = solid((int) baseW, (int) baseH, new Color(0.2f, 0.5f, 1f, 1f));
 
-        platforms.add(new Platform(340, GROUND_Y + 50, 300, 8));
+        platforms.add(new Platform(340, GROUND_Y + 50,  300, 8));
         platforms.add(new Platform(440, GROUND_Y + 120, 200, 8));
 
         laneY = new float[] {
@@ -102,16 +99,21 @@ public class Main implements ApplicationListener {
         };
 
         stage = new Stage(new ScreenViewport());
-        font = new BitmapFont();
-        skin = new Skin();
+        font  = new BitmapFont();
+        skin  = new Skin();
 
-        Texture upTex   = solid(150, 40, new Color(0.18f, 0.18f, 0.18f, 1f));
-        Texture downTex = solid(150, 40, new Color(0.12f, 0.12f, 0.12f, 1f));
-        Texture overTex = solid(150, 40, new Color(0.24f, 0.24f, 0.24f, 1f));
-        skin.add("up", upTex);
-        skin.add("down", downTex);
-        skin.add("over", overTex);
+        skin.add("up",   solid(150, 40, new Color(0.18f, 0.18f, 0.18f, 1f)));
+        skin.add("down", solid(150, 40, new Color(0.12f, 0.12f, 0.12f, 1f)));
+        skin.add("over", solid(150, 40, new Color(0.24f, 0.24f, 0.24f, 1f)));
         skin.add("font", font);
+
+        TextButton.TextButtonStyle tbs = new TextButton.TextButtonStyle();
+        tbs.up        = skin.newDrawable("up");
+        tbs.down      = skin.newDrawable("down");
+        tbs.over      = skin.newDrawable("over");
+        tbs.font      = font;
+        tbs.fontColor = Color.WHITE;
+        skin.add("default", tbs);
 
         Pixmap epm = new Pixmap((int) enemyW, (int) enemyH, Pixmap.Format.RGBA8888);
         epm.setColor(1f, 0.2f, 0.2f, 1f);
@@ -119,224 +121,68 @@ public class Main implements ApplicationListener {
         enemyTex = new Texture(epm);
         epm.dispose();
 
-        TextButton.TextButtonStyle tbs = new TextButton.TextButtonStyle();
-        tbs.up = skin.newDrawable("up");
-        tbs.down = skin.newDrawable("down");
-        tbs.over = skin.newDrawable("over");
-        tbs.font = font;
-        tbs.fontColor = Color.WHITE;
-        skin.add("default", tbs);
-
         damageTextSystem = new DamageTextSystem();
-        enemySystem = new EnemySystem(enemyTex, enemyW, enemyH, enemySpeed, enemyContactDamage, enemySpawnInterval);
+        particleSystem   = new ParticleSystem();
+        projectileSystem = new ProjectileSystem();
+
+        enemySystem = new EnemySystem(
+            enemyTex, enemyW, enemyH,
+            enemySpeed, enemyContactDamage, enemySpawnInterval
+        );
         enemySystem.startFirstWave();
 
-        projectileSystem = new ProjectileSystem();
-        particleSystem = new ParticleSystem();
-
         shopSystem = new ShopSystem(stage, skin, new ShopSystem.ShopCallback() {
-            @Override
-            public void onRangedAttackPurchased() {
-                System.out.println("You can now shoot projectiles with K!");
+            @Override public void onRangedAttackPurchased() {}
+            @Override public void onFasterAttackPurchased() {
+                attackCooldown = 0.15f;
             }
-
-            @Override
-            public void onFasterAttackPurchased() {
-                attackCooldown = 0.15f; // Reduced from 0.30f
-                System.out.println("Attack cooldown reduced!");
+            @Override public void onStrongerAttackPurchased() {
+                attackDamage = 15;
             }
-
-            @Override
-            public void onStrongerAttackPurchased() {
-                attackDamage = 15; // Increased from 10
-                System.out.println("Attack damage increased!");
-            }
-
-            @Override
-            public void onRepairBase() {
-                int healAmount = baseHpMax - baseHp;
+            @Override public void onRepairBase() {
+                int healed = baseHpMax - baseHp;
                 baseHp = baseHpMax;
-                float centerX = baseX + baseW / 2f;
-                float centerY = baseY + baseH + 18f;
-                damageTextSystem.add(centerX, centerY, healAmount);
+                damageTextSystem.add(baseX + baseW / 2f, baseY + baseH + 18f, healed);
             }
-
-            @Override
-            public int getBaseHp() {
-                return baseHp;
-            }
-
-            @Override
-            public int getBaseHpMax() {
-                return baseHpMax;
-            }
+            @Override public int getBaseHp()    { return baseHp; }
+            @Override public int getBaseHpMax() { return baseHpMax; }
         });
 
         Gdx.input.setInputProcessor(stage);
     }
 
-    private Texture solid(int w, int h, Color c) {
-        Pixmap pm = new Pixmap(w, h, Pixmap.Format.RGBA8888);
-        pm.setColor(c);
-        pm.fill();
-        Texture t = new Texture(pm);
-        pm.dispose();
-        return t;
-    }
-
-    private void changeBaseHp(int delta) {
-        if (delta == 0) return;
-
-        baseHp = MathUtils.clamp(baseHp + delta, 0, baseHpMax);
-
-        float centerX = baseX + baseW / 2f;
-        float centerY = baseY + baseH + 18f;
-        damageTextSystem.add(centerX, centerY, delta);
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        if (width <= 0 || height <= 0) return;
-        stage.getViewport().update(width, height, true);
-    }
-
     @Override
     public void render() {
-        float dt = Gdx.graphics.getDeltaTime();
+        float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
 
-        // Check for shop toggle
-        if (Gdx.input.isKeyJustPressed(Input.Keys.S) || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.S) ||
+            Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             shopSystem.toggle();
         }
 
-        // Only process game input if shop is closed
         if (!shopSystem.isOpen()) {
-            boolean left  = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
-            boolean right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
-            boolean jump  = Gdx.input.isKeyJustPressed(Input.Keys.UP);
-            boolean down  = Gdx.input.isKeyPressed(Input.Keys.DOWN);
-            boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
-            boolean shootKey = Gdx.input.isKeyJustPressed(Input.Keys.K);
-
-            // Drop through platform when holding down
-            if (down && onGround && py > GROUND_Y) {
-                dropThroughPlatform = true;
-                py -= 5f; // Drop slightly to trigger fall
-                onGround = false;
-            } else if (!down) {
-                dropThroughPlatform = false;
-            }
-
-            if (left ^ right) {
-                float dir = right ? 1f : -1f;
-                vx += dir * MOVE_ACCEL * dt;
-                if (right) facingRight = true;
-                if (left)  facingRight = false;
-            } else {
-                if (vx > 0) vx = Math.max(0, vx - FRICTION * dt);
-                else if (vx < 0) vx = Math.min(0, vx + FRICTION * dt);
-            }
-            vx = MathUtils.clamp(vx, -MOVE_MAX, MOVE_MAX);
-
-            if (jump && onGround) {
-                vy = JUMP_VY;
-                onGround = false;
-            }
-
-            float prevPy = py;
-
-            vy += GRAVITY * dt;
-            px += vx * dt;
-            py += vy * dt;
-
-            onGround = false;
-
-            if (py <= GROUND_Y) {
-                py = GROUND_Y;
-                vy = 0;
-                onGround = true;
-            }
-
-            if (vy <= 0f) {
-                float playerBottomPrev = prevPy;
-                float playerBottomNow  = py;
-                float playerLeft = px;
-                float playerRight = px + PLAYER_W;
-
-                for (Platform p : platforms) {
-                    // Skip platform collision if dropping through
-                    if (dropThroughPlatform) continue;
-
-                    float platTop = p.top();
-                    boolean wasAbove = playerBottomPrev >= platTop;
-                    boolean nowBelowTop = playerBottomNow <= platTop;
-                    boolean overlapX = playerRight > p.x && playerLeft < p.x + p.w;
-
-                    if (wasAbove && nowBelowTop && overlapX) {
-                        py = platTop;
-                        vy = 0;
-                        onGround = true;
-                        break;
-                    }
-                }
-            }
-
-            if (attackCooldownTimer > 0f) attackCooldownTimer -= dt;
-
-            if (attackTimer > 0f) {
-                attackTimer -= dt;
-                if (attackTimer <= 0f) attackActive = false;
-            }
-
-            // Melee attack (J key)
-            if (attackKey && attackCooldownTimer <= 0f) {
-                attackActive = true;
-                attackTimer = attackDuration;
-                attackCooldownTimer = attackCooldown;
-            }
-
-            // Ranged attack (K key) - only if purchased
-            if (shootKey && attackCooldownTimer <= 0f && shopSystem.hasRangedAttack()) {
-                float shootX = facingRight ? (px + PLAYER_W) : px;
-                float shootY = py + PLAYER_H / 2f;
-                projectileSystem.shoot(shootX, shootY, facingRight);
-                attackCooldownTimer = attackCooldown;
-            }
-
-            float attackY = py + (PLAYER_H - ATTACK_H) / 2f;
-            float attackX = facingRight ? (px + PLAYER_W) : (px - ATTACK_W);
-            attackBounds.set(attackX, attackY, ATTACK_W, ATTACK_H);
+            handleInput(dt);
         }
 
         damageTextSystem.update(dt);
-        projectileSystem.update(dt, Gdx.graphics.getWidth());
+        projectileSystem.update(dt, Gdx.graphics.getWidth(), GROUND_Y, platforms);
         particleSystem.update(dt);
-
         enemySystem.updateAndSpawn(dt, laneY);
 
         int baseDelta = enemySystem.updateEnemies(
-            dt,
-            GRAVITY,
-            GROUND_Y,
-            platforms,
+            dt, GRAVITY, GROUND_Y, platforms,
             baseX, baseY, baseW, baseH,
-            attackBounds,
-            attackActive,
-            damageTextSystem,
-            particleSystem,
-            attackDamage,
-            shopSystem
+            attackBounds, attackActive,
+            damageTextSystem, particleSystem,
+            attackDamage, shopSystem
         );
 
-        // Check projectile collisions
         projectileSystem.checkCollisions(
             enemySystem.getEnemies(),
-            enemyW,
-            enemyH,
-            damageTextSystem,
-            particleSystem,
-            attackDamage,
-            shopSystem
+            enemyW, enemyH,
+            damageTextSystem, particleSystem,
+            attackDamage, shopSystem,
+            enemySystem
         );
 
         if (baseDelta != 0) changeBaseHp(baseDelta);
@@ -346,46 +192,28 @@ public class Main implements ApplicationListener {
         ScreenUtils.clear(0, 0, 0, 1);
 
         batch.begin();
-        batch.draw(baseTex, baseX, baseY, baseW, baseH);
-        batch.draw(playerTex, px, py);
-
-        enemySystem.draw(batch);
+        batch.draw(baseTex,   baseX, baseY, baseW, baseH);
+        batch.draw(playerTex, px,    py);
         projectileSystem.draw(batch);
         particleSystem.draw(batch);
-
-        String waveText;
-        if (enemySystem.isInPrep()) {
-            waveText = "Wave " + (enemySystem.getWave() + 1) + " in " +
-                (int)Math.ceil(enemySystem.getPrepTimer()) + "s";
-        } else {
-            waveText = "Wave " + enemySystem.getWave() +
-                " | Alive: " + enemySystem.getAliveCount() +
-                " | Left to spawn: " + enemySystem.getRemainingToSpawn();
-        }
-
-        font.draw(batch, waveText, 12, Gdx.graphics.getHeight() - 12);
-        font.draw(batch, "Controls: A/D - Move | UP - Jump | J - Melee | K - Shoot | S - Shop",
-            12, Gdx.graphics.getHeight() - 32);
-
+        drawHUD();
         damageTextSystem.draw(batch, font);
-
         batch.end();
 
-        float barWidth = 64f;
-        float barHeight = 8f;
-        float barX = baseX - 8;
-        float barY = baseY + baseH + 6;
-
-        float pct = (float) baseHp / (float) baseHpMax;
-        float fgW = barWidth * pct;
+        enemySystem.draw(batch, shapes);
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
+        float barWidth  = 64f;
+        float barHeight = 8f;
+        float barX      = baseX - 8;
+        float barY      = baseY + baseH + 6;
+        float pct       = (float) baseHp / baseHpMax;
+
         shapes.setColor(0.15f, 0.15f, 0.15f, 1f);
         shapes.rect(barX, barY, barWidth, barHeight);
-
         shapes.setColor(0.2f, 0.85f, 0.3f, 1f);
-        shapes.rect(barX, barY, fgW, barHeight);
+        shapes.rect(barX, barY, barWidth * pct, barHeight);
 
         shapes.setColor(0.35f, 0.35f, 0.35f, 1f);
         for (Platform p : platforms) {
@@ -404,20 +232,146 @@ public class Main implements ApplicationListener {
         stage.draw();
     }
 
-    @Override public void pause() { }
-    @Override public void resume() { }
+    private void handleInput(float dt) {
+        boolean left      = Gdx.input.isKeyPressed(Input.Keys.A)    || Gdx.input.isKeyPressed(Input.Keys.LEFT);
+        boolean right     = Gdx.input.isKeyPressed(Input.Keys.D)    || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        boolean jump      = Gdx.input.isKeyJustPressed(Input.Keys.UP);
+        boolean down      = Gdx.input.isKeyPressed(Input.Keys.DOWN);
+        boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
+        boolean shootKey  = Gdx.input.isKeyJustPressed(Input.Keys.K);
+
+        if (down && onGround && py > GROUND_Y) {
+            dropThroughPlatform = true;
+            py -= 5f;
+            onGround = false;
+        } else if (!down) {
+            dropThroughPlatform = false;
+        }
+
+        if (left ^ right) {
+            float dir = right ? 1f : -1f;
+            vx += dir * MOVE_ACCEL * dt;
+            facingRight = right;
+        } else {
+            if (vx > 0) vx = Math.max(0, vx - FRICTION * dt);
+            else if (vx < 0) vx = Math.min(0, vx + FRICTION * dt);
+        }
+        vx = MathUtils.clamp(vx, -MOVE_MAX, MOVE_MAX);
+
+        if (jump && onGround) {
+            vy = JUMP_VY;
+            onGround = false;
+        }
+
+        float prevPy = py;
+        vy += GRAVITY * dt;
+        px += vx * dt;
+        py += vy * dt;
+
+        onGround = false;
+
+        if (py <= GROUND_Y) {
+            py = GROUND_Y;
+            vy = 0;
+            onGround = true;
+        }
+
+        if (vy <= 0f) {
+            for (Platform p : platforms) {
+                if (dropThroughPlatform) continue;
+                float platTop = p.top();
+                boolean wasAbove = prevPy >= platTop;
+                boolean nowBelow = py     <= platTop;
+                boolean overlapX = (px + PLAYER_W) > p.x && px < (p.x + p.w);
+                if (wasAbove && nowBelow && overlapX) {
+                    py = platTop;
+                    vy = 0;
+                    onGround = true;
+                    break;
+                }
+            }
+        }
+
+        if (attackCooldownTimer > 0f) attackCooldownTimer -= dt;
+        if (attackTimer > 0f) {
+            attackTimer -= dt;
+            if (attackTimer <= 0f) attackActive = false;
+        }
+
+        if (attackKey && attackCooldownTimer <= 0f) {
+            attackActive = true;
+            attackTimer  = attackDuration;
+            attackCooldownTimer = attackCooldown;
+        }
+
+        if (shootKey && attackCooldownTimer <= 0f && shopSystem.hasRangedAttack()) {
+            float shootX = facingRight ? (px + PLAYER_W) : px;
+            float shootY = py + PLAYER_H / 2f;
+            projectileSystem.shoot(shootX, shootY, facingRight, shopSystem.hasPierceUpgrade());
+            attackCooldownTimer = attackCooldown;
+        }
+
+        float attackY = py + (PLAYER_H - ATTACK_H) / 2f;
+        float attackX = facingRight ? (px + PLAYER_W) : (px - ATTACK_W);
+        attackBounds.set(attackX, attackY, ATTACK_W, ATTACK_H);
+    }
+
+    private void drawHUD() {
+        String waveText;
+        if (enemySystem.isInPrep()) {
+            waveText = "Wave " + (enemySystem.getWave() + 1) + " in "
+                + (int) Math.ceil(enemySystem.getPrepTimer()) + "s";
+        } else {
+            waveText = "Wave " + enemySystem.getWave()
+                + " | Alive: "         + enemySystem.getAliveCount()
+                + " | Left to spawn: " + enemySystem.getRemainingToSpawn();
+        }
+
+        int screenH = Gdx.graphics.getHeight();
+        font.draw(batch, waveText, 12, screenH - 12);
+        font.draw(batch, "A/D Move | UP Jump | J Melee | K Shoot | S Shop", 12, screenH - 32);
+
+        if (shopSystem.hasRangedAttack()) {
+            String shotType = shopSystem.hasPierceUpgrade() ? "PIERCE" : "NORMAL";
+            font.draw(batch, "Shot: " + shotType, 12, screenH - 52);
+        }
+    }
+
+    private void changeBaseHp(int delta) {
+        if (delta == 0) return;
+        baseHp = MathUtils.clamp(baseHp + delta, 0, baseHpMax);
+        damageTextSystem.add(baseX + baseW / 2f, baseY + baseH + 18f, delta);
+    }
+
+    private Texture solid(int w, int h, Color c) {
+        Pixmap pm = new Pixmap(w, h, Pixmap.Format.RGBA8888);
+        pm.setColor(c);
+        pm.fill();
+        Texture t = new Texture(pm);
+        pm.dispose();
+        return t;
+    }
+
+    @Override public void resize(int width, int height) {
+        if (width <= 0 || height <= 0) return;
+        stage.getViewport().update(width, height, true);
+    }
+
+    @Override public void pause()  {}
+    @Override public void resume() {}
 
     @Override
     public void dispose() {
-        if (batch != null) batch.dispose();
-        if (shapes != null) shapes.dispose();
-        if (playerTex != null) playerTex.dispose();
-        if (baseTex != null) baseTex.dispose();
-        if (stage != null) stage.dispose();
-        if (skin != null) skin.dispose();
-        if (font != null) font.dispose();
-        if (enemyTex != null) enemyTex.dispose();
+        if (batch            != null) batch.dispose();
+        if (shapes           != null) shapes.dispose();
+        if (playerTex        != null) playerTex.dispose();
+        if (baseTex          != null) baseTex.dispose();
+        if (enemyTex         != null) enemyTex.dispose();
+        if (stage            != null) stage.dispose();
+        if (skin             != null) skin.dispose();
+        if (font             != null) font.dispose();
         if (projectileSystem != null) projectileSystem.dispose();
-        if (particleSystem != null) particleSystem.dispose();
+        if (particleSystem   != null) particleSystem.dispose();
+        if (enemySystem      != null) enemySystem.dispose();
     }
 }

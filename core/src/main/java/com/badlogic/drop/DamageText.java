@@ -7,10 +7,10 @@ public class DamageText {
     public float vy;
 
     public DamageText(float x, float y, String text, float life, float vy) {
-        this.x = x;
-        this.y = y;
+        this.x    = x;
+        this.y    = y;
         this.text = text;
         this.life = life;
-        this.vy = vy;
+        this.vy   = vy;
     }
 }

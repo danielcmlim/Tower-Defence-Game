@@ -19,7 +19,7 @@ public class DamageTextSystem {
         for (int i = texts.size - 1; i >= 0; i--) {
             DamageText d = texts.get(i);
             d.life -= dt;
-            d.y += d.vy * dt;
+            d.y    += d.vy * dt;
             if (d.life <= 0f) texts.removeIndex(i);
         }
     }

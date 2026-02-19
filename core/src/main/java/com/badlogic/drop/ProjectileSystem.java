@@ -1,100 +1,123 @@
 package com.badlogic.drop;
 
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 
 public class ProjectileSystem {
 
-    private Array<Projectile> projectiles = new Array<>();
-    private Texture projectileTex;
-    private static final float PROJECTILE_W = 12f;
-    private static final float PROJECTILE_H = 8f;
+    private final Array<Projectile> projectiles = new Array<>();
+
+    private final Texture projectileTex;
+    private final Texture pierceTex;
+
+    private static final float PROJECTILE_W     = 12f;
+    private static final float PROJECTILE_H     = 8f;
     private static final float PROJECTILE_SPEED = 400f;
 
     public ProjectileSystem() {
-        // Create projectile texture
         Pixmap pm = new Pixmap(12, 8, Pixmap.Format.RGBA8888);
         pm.setColor(1f, 1f, 0.3f, 1f);
         pm.fill();
         projectileTex = new Texture(pm);
         pm.dispose();
+
+        pm = new Pixmap(14, 6, Pixmap.Format.RGBA8888);
+        pm.setColor(0.2f, 1f, 0.9f, 1f);
+        pm.fill();
+        pierceTex = new Texture(pm);
+        pm.dispose();
     }
 
-    public void shoot(float x, float y, boolean facingRight) {
+    public void shoot(float x, float y, boolean facingRight, boolean pierces) {
         Projectile p = new Projectile();
-        p.x = x;
-        p.y = y;
-        p.facingRight = facingRight;
+        p.x       = x;
+        p.y       = y;
+        p.vx      = facingRight ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
+        p.pierces = pierces;
         projectiles.add(p);
     }
 
-    public void update(float dt, float screenWidth) {
+    public void shoot(float x, float y, boolean facingRight) {
+        shoot(x, y, facingRight, false);
+    }
+
+    public void update(float dt, float screenWidth, float groundY, Array<Platform> platforms) {
         for (int i = projectiles.size - 1; i >= 0; i--) {
             Projectile p = projectiles.get(i);
+            p.x += p.vx * dt;
 
-            float speed = p.facingRight ? PROJECTILE_SPEED : -PROJECTILE_SPEED;
-            p.x += speed * dt;
+            if (p.y <= groundY) { projectiles.removeIndex(i); continue; }
 
-            // Remove if off screen
+            boolean hitPlatform = false;
+            for (Platform plat : platforms) {
+                if (new Rectangle(p.x, p.y, PROJECTILE_W, PROJECTILE_H)
+                    .overlaps(new Rectangle(plat.x, plat.y, plat.w, plat.h))) {
+                    hitPlatform = true;
+                    break;
+                }
+            }
+            if (hitPlatform) { projectiles.removeIndex(i); continue; }
+
             if (p.x > screenWidth || p.x + PROJECTILE_W < 0) {
                 projectiles.removeIndex(i);
             }
         }
     }
 
+    public void update(float dt, float screenWidth) {
+        update(dt, screenWidth, -99999f, new Array<>());
+    }
+
     public void checkCollisions(
         Array<Enemy> enemies,
-        float enemyW,
-        float enemyH,
+        float enemyW, float enemyH,
         DamageTextSystem damageTextSystem,
         ParticleSystem particleSystem,
-        int baseDamage,
-        ShopSystem shopSystem
+        int damage,
+        ShopSystem shopSystem,
+        EnemySystem enemySystem
     ) {
         for (int i = projectiles.size - 1; i >= 0; i--) {
+            if (i >= projectiles.size) continue;
             Projectile p = projectiles.get(i);
             Rectangle pRect = new Rectangle(p.x, p.y, PROJECTILE_W, PROJECTILE_H);
+            boolean consumed = false;
 
             for (int j = enemies.size - 1; j >= 0; j--) {
+                if (j >= enemies.size) continue;
                 Enemy e = enemies.get(j);
-                Rectangle eRect = new Rectangle(e.x, e.y, enemyW, enemyH);
 
-                if (pRect.overlaps(eRect)) {
-                    // Hit!
-                    damageTextSystem.add(e.x + enemyW / 2f, e.y + enemyH + 10f, -baseDamage);
+                if (pRect.overlaps(new Rectangle(e.x, e.y, enemyW, enemyH))) {
+                    enemySystem.hitEnemy(e, damage, damageTextSystem, particleSystem, shopSystem);
 
-                    // Spawn coin particles and award coins
-                    float centerX = e.x + enemyW / 2f;
-                    float centerY = e.y + enemyH / 2f;
-                    int coinReward = MathUtils.random(3, 6);
-                    particleSystem.spawnCoinBurst(centerX, centerY, coinReward);
-                    shopSystem.addCoins(coinReward);
-
-                    enemies.removeIndex(j);
-                    projectiles.removeIndex(i);
-                    break;
+                    if (!p.pierces) {
+                        projectiles.removeIndex(i);
+                        consumed = true;
+                        break;
+                    }
                 }
             }
+
+            if (consumed) continue;
         }
     }
 
     public void draw(SpriteBatch batch) {
         for (Projectile p : projectiles) {
-            batch.draw(projectileTex, p.x, p.y, PROJECTILE_W, PROJECTILE_H);
+            batch.draw(p.pierces ? pierceTex : projectileTex, p.x, p.y, PROJECTILE_W, PROJECTILE_H);
         }
     }
 
     public void dispose() {
         if (projectileTex != null) projectileTex.dispose();
+        if (pierceTex     != null) pierceTex.dispose();
     }
 
     static class Projectile {
-        float x, y;
-        boolean facingRight;
+        float x, y, vx;
+        boolean pierces = false;
     }
 }

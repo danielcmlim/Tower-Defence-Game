@@ -2,7 +2,6 @@ package com.badlogic.drop;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -13,27 +12,26 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 
 public class ShopSystem {
 
-    private Stage stage;
+    private final Stage stage;
     private Table shopWindow;
     private boolean isOpen = false;
 
-    private int coins = 50; // Starting money
+    private int coins = 50;
     private Label coinsLabel;
     private TextButton repairBtn;
-    private Label repairLabel;
 
-    // Upgrade states
-    private boolean hasRangedAttack = false;
-    private boolean hasFasterAttack = false;
+    private boolean hasRangedAttack   = false;
+    private boolean hasFasterAttack   = false;
     private boolean hasStrongerAttack = false;
+    private boolean hasPierceUpgrade  = false;
 
-    // Upgrade prices
-    private static final int RANGED_ATTACK_PRICE = 30;
-    private static final int FASTER_ATTACK_PRICE = 20;
-    private static final int STRONGER_ATTACK_PRICE = 25;
-    private static final float REPAIR_COST_PER_HP = 0.5f; // 0.5 coins per HP
+    private static final int   RANGED_ATTACK_PRICE   = 30;
+    private static final int   FASTER_ATTACK_PRICE   = 20;
+    private static final int   STRONGER_ATTACK_PRICE = 25;
+    private static final int   PIERCE_PRICE          = 35;
+    private static final float REPAIR_COST_PER_HP    = 0.5f;
 
-    private ShopCallback callback;
+    private final ShopCallback callback;
 
     public interface ShopCallback {
         void onRangedAttackPurchased();
@@ -45,7 +43,7 @@ public class ShopSystem {
     }
 
     public ShopSystem(Stage stage, Skin skin, ShopCallback callback) {
-        this.stage = stage;
+        this.stage    = stage;
         this.callback = callback;
         createShopUI(skin);
     }
@@ -55,157 +53,108 @@ public class ShopSystem {
         shopWindow.setBackground(skin.newDrawable("up", new Color(0.1f, 0.1f, 0.15f, 0.95f)));
         shopWindow.pad(20);
 
-        // Title
         Label titleLabel = new Label("SHOP", new Label.LabelStyle(skin.getFont("font"), Color.YELLOW));
         shopWindow.add(titleLabel).colspan(2).padBottom(15).row();
 
-        // Coins display
         coinsLabel = new Label("Coins: " + coins, new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
         shopWindow.add(coinsLabel).colspan(2).padBottom(20).row();
 
-        // Base Repair
-        repairLabel = new Label("Repair Base (Full Heal)",
-            new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
+        Label repairLabel = new Label("Repair Base (Full Heal)", new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
         repairBtn = new TextButton("Buy: 0", skin);
         repairBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                purchaseRepair();
-            }
+            @Override public void clicked(InputEvent event, float x, float y) { purchaseRepair(); }
         });
         shopWindow.add(repairLabel).left().padRight(10);
-        shopWindow.add(repairBtn).width(120).row();
+        shopWindow.add(repairBtn).width(140).row();
 
-        // Ranged Attack upgrade
-        Label rangedLabel = new Label("Ranged Attack (Shoot projectiles)",
-            new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
-        TextButton rangedBtn = new TextButton("Buy: " + RANGED_ATTACK_PRICE, skin);
-        rangedBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                purchaseRangedAttack();
-            }
-        });
-        shopWindow.add(rangedLabel).left().padRight(10).padTop(10);
-        shopWindow.add(rangedBtn).width(120).padTop(10).row();
+        addUpgradeRow(skin, "Ranged Attack  (shoot with K)", "Buy: " + RANGED_ATTACK_PRICE,
+            new ClickListener() {
+                @Override public void clicked(InputEvent event, float x, float y) { purchaseRangedAttack(); }
+            });
 
-        // Faster Attack upgrade
-        Label fasterLabel = new Label("Faster Attack (Reduced cooldown)",
-            new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
-        TextButton fasterBtn = new TextButton("Buy: " + FASTER_ATTACK_PRICE, skin);
-        fasterBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                purchaseFasterAttack();
-            }
-        });
-        shopWindow.add(fasterLabel).left().padRight(10).padTop(10);
-        shopWindow.add(fasterBtn).width(120).padTop(10).row();
+        addUpgradeRow(skin, "Faster Attack  (shorter cooldown)", "Buy: " + FASTER_ATTACK_PRICE,
+            new ClickListener() {
+                @Override public void clicked(InputEvent event, float x, float y) { purchaseFasterAttack(); }
+            });
 
-        // Stronger Attack upgrade
-        Label strongerLabel = new Label("Stronger Attack (+5 damage)",
-            new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
-        TextButton strongerBtn = new TextButton("Buy: " + STRONGER_ATTACK_PRICE, skin);
-        strongerBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                purchaseStrongerAttack();
-            }
-        });
-        shopWindow.add(strongerLabel).left().padRight(10).padTop(10);
-        shopWindow.add(strongerBtn).width(120).padTop(10).row();
+        addUpgradeRow(skin, "Stronger Attack  (+5 damage)", "Buy: " + STRONGER_ATTACK_PRICE,
+            new ClickListener() {
+                @Override public void clicked(InputEvent event, float x, float y) { purchaseStrongerAttack(); }
+            });
 
-        // Close button
+        addUpgradeRow(skin, "Pierce Shot  (passes through enemies)", "Buy: " + PIERCE_PRICE,
+            new ClickListener() {
+                @Override public void clicked(InputEvent event, float x, float y) { purchasePierce(); }
+            });
+
         TextButton closeBtn = new TextButton("Close (ESC)", skin);
         closeBtn.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                toggle();
-            }
+            @Override public void clicked(InputEvent event, float x, float y) { toggle(); }
         });
         shopWindow.add(closeBtn).colspan(2).padTop(20).width(200).row();
 
-        // Position in center of screen
         shopWindow.pack();
         shopWindow.setPosition(
-            (Gdx.graphics.getWidth() - shopWindow.getWidth()) / 2,
-            (Gdx.graphics.getHeight() - shopWindow.getHeight()) / 2
+            (Gdx.graphics.getWidth()  - shopWindow.getWidth())  / 2f,
+            (Gdx.graphics.getHeight() - shopWindow.getHeight()) / 2f
         );
 
         shopWindow.setVisible(false);
         stage.addActor(shopWindow);
     }
 
+    private void addUpgradeRow(Skin skin, String labelText, String btnText, ClickListener listener) {
+        Label label = new Label(labelText, new Label.LabelStyle(skin.getFont("font"), Color.WHITE));
+        TextButton btn = new TextButton(btnText, skin);
+        btn.addListener(listener);
+        shopWindow.add(label).left().padRight(10).padTop(10);
+        shopWindow.add(btn).width(140).padTop(10).row();
+    }
+
     private void purchaseRepair() {
         if (callback == null) return;
-
-        int currentHp = callback.getBaseHp();
-        int maxHp = callback.getBaseHpMax();
-        int hpNeeded = maxHp - currentHp;
-
-        if (hpNeeded <= 0) {
-            System.out.println("Base already at full health!");
-            return;
-        }
-
-        int cost = (int)Math.ceil(hpNeeded * REPAIR_COST_PER_HP);
-
-        if (coins >= cost) {
-            coins -= cost;
-            updateCoinsLabel();
-            callback.onRepairBase();
-            System.out.println("Base fully repaired for " + cost + " coins!");
-        } else {
-            System.out.println("Not enough coins! Need " + cost + " coins.");
-        }
+        int hpNeeded = callback.getBaseHpMax() - callback.getBaseHp();
+        if (hpNeeded <= 0) return;
+        int cost = (int) Math.ceil(hpNeeded * REPAIR_COST_PER_HP);
+        if (trySpend(cost)) callback.onRepairBase();
     }
 
     private void purchaseRangedAttack() {
-        if (hasRangedAttack) {
-            System.out.println("Already purchased!");
-            return;
-        }
-        if (coins >= RANGED_ATTACK_PRICE) {
-            coins -= RANGED_ATTACK_PRICE;
+        if (hasRangedAttack) return;
+        if (trySpend(RANGED_ATTACK_PRICE)) {
             hasRangedAttack = true;
-            updateCoinsLabel();
             if (callback != null) callback.onRangedAttackPurchased();
-            System.out.println("Ranged Attack purchased!");
-        } else {
-            System.out.println("Not enough coins!");
         }
     }
 
     private void purchaseFasterAttack() {
-        if (hasFasterAttack) {
-            System.out.println("Already purchased!");
-            return;
-        }
-        if (coins >= FASTER_ATTACK_PRICE) {
-            coins -= FASTER_ATTACK_PRICE;
+        if (hasFasterAttack) return;
+        if (trySpend(FASTER_ATTACK_PRICE)) {
             hasFasterAttack = true;
-            updateCoinsLabel();
             if (callback != null) callback.onFasterAttackPurchased();
-            System.out.println("Faster Attack purchased!");
-        } else {
-            System.out.println("Not enough coins!");
         }
     }
 
     private void purchaseStrongerAttack() {
-        if (hasStrongerAttack) {
-            System.out.println("Already purchased!");
-            return;
-        }
-        if (coins >= STRONGER_ATTACK_PRICE) {
-            coins -= STRONGER_ATTACK_PRICE;
+        if (hasStrongerAttack) return;
+        if (trySpend(STRONGER_ATTACK_PRICE)) {
             hasStrongerAttack = true;
-            updateCoinsLabel();
             if (callback != null) callback.onStrongerAttackPurchased();
-            System.out.println("Stronger Attack purchased!");
-        } else {
-            System.out.println("Not enough coins!");
         }
+    }
+
+    private void purchasePierce() {
+        if (hasPierceUpgrade) return;
+        if (trySpend(PIERCE_PRICE)) hasPierceUpgrade = true;
+    }
+
+    private boolean trySpend(int cost) {
+        if (coins >= cost) {
+            coins -= cost;
+            updateCoinsLabel();
+            return true;
+        }
+        return false;
     }
 
     private void updateCoinsLabel() {
@@ -214,15 +163,11 @@ public class ShopSystem {
 
     public void updateRepairButton() {
         if (callback == null) return;
-
-        int currentHp = callback.getBaseHp();
-        int maxHp = callback.getBaseHpMax();
-        int hpNeeded = maxHp - currentHp;
-
+        int hpNeeded = callback.getBaseHpMax() - callback.getBaseHp();
         if (hpNeeded <= 0) {
             repairBtn.setText("Full HP");
         } else {
-            int cost = (int)Math.ceil(hpNeeded * REPAIR_COST_PER_HP);
+            int cost = (int) Math.ceil(hpNeeded * REPAIR_COST_PER_HP);
             repairBtn.setText("Buy: " + cost);
         }
     }
@@ -230,29 +175,18 @@ public class ShopSystem {
     public void toggle() {
         isOpen = !isOpen;
         shopWindow.setVisible(isOpen);
-        if (isOpen) {
-            updateRepairButton();
-        }
+        if (isOpen) updateRepairButton();
     }
 
-    public boolean isOpen() {
-        return isOpen;
-    }
+    public boolean isOpen()            { return isOpen; }
 
     public void addCoins(int amount) {
         coins += amount;
         updateCoinsLabel();
     }
 
-    public boolean hasRangedAttack() {
-        return hasRangedAttack;
-    }
-
-    public boolean hasFasterAttack() {
-        return hasFasterAttack;
-    }
-
-    public boolean hasStrongerAttack() {
-        return hasStrongerAttack;
-    }
+    public boolean hasRangedAttack()   { return hasRangedAttack; }
+    public boolean hasFasterAttack()   { return hasFasterAttack; }
+    public boolean hasStrongerAttack() { return hasStrongerAttack; }
+    public boolean hasPierceUpgrade()  { return hasPierceUpgrade; }
 }
