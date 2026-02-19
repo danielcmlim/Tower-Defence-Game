@@ -134,7 +134,8 @@ public class EnemySystem {
                         attackBounds.y                   < e.y + enemyH &&
                         attackBounds.y + attackBounds.height > e.y;
 
-                if (hit) {
+                if (hit && !e.hitThisSwing) {
+                    e.hitThisSwing = true;
                     boolean dead = e.takeDamage(attackDamage);
                     damageTextSystem.add(e.x + enemyW / 2f, e.y + enemyH + 10f, -attackDamage);
                     if (dead) {
@@ -143,6 +144,8 @@ public class EnemySystem {
                         continue;
                     }
                 }
+            } else {
+                e.hitThisSwing = false;
             }
 
             boolean touchesBase =

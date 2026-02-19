@@ -7,6 +7,7 @@ public class Enemy {
     public int hp;
     public int maxHp;
     public boolean hasShield;
+    public boolean hitThisSwing = false;
 
     public Enemy(int hp, boolean hasShield) {
         this.hp = hp;

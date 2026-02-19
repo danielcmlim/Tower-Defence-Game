@@ -91,7 +91,10 @@ public class ProjectileSystem {
                 Enemy e = enemies.get(j);
 
                 if (pRect.overlaps(new Rectangle(e.x, e.y, enemyW, enemyH))) {
-                    enemySystem.hitEnemy(e, damage, damageTextSystem, particleSystem, shopSystem);
+                    if (!p.hitEnemies.contains(e)) {
+                        p.hitEnemies.add(e);
+                        enemySystem.hitEnemy(e, damage, damageTextSystem, particleSystem, shopSystem);
+                    }
 
                     if (!p.pierces) {
                         projectiles.removeIndex(i);
@@ -119,5 +122,6 @@ public class ProjectileSystem {
     static class Projectile {
         float x, y, vx;
         boolean pierces = false;
+        final java.util.HashSet<Enemy> hitEnemies = new java.util.HashSet<>();
     }
 }
