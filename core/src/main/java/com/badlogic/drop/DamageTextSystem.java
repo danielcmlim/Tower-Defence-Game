@@ -15,6 +15,10 @@ public class DamageTextSystem {
         texts.add(new DamageText(x, y, t, 0.7f, 40f));
     }
 
+    public void addText(float x, float y, String text) {
+        texts.add(new DamageText(x, y, text, 0.9f, 35f));
+    }
+
     public void update(float dt) {
         for (int i = texts.size - 1; i >= 0; i--) {
             DamageText d = texts.get(i);
@@ -28,8 +32,9 @@ public class DamageTextSystem {
         for (DamageText d : texts) {
             float alpha = MathUtils.clamp(d.life / 0.7f, 0f, 1f);
 
-            if (d.text.startsWith("-")) font.setColor(1f, 0.3f, 0.3f, alpha);
-            else                        font.setColor(0.3f, 1f, 0.3f, alpha);
+            if (d.text.equals("BLOCKED"))  font.setColor(1f, 0.6f, 0.1f, alpha);
+            else if (d.text.startsWith("-")) font.setColor(1f, 0.3f, 0.3f, alpha);
+            else                             font.setColor(0.3f, 1f, 0.3f, alpha);
 
             font.draw(batch, d.text, d.x, d.y);
         }

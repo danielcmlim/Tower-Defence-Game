@@ -16,7 +16,7 @@ public class ShopSystem {
     private Table shopWindow;
     private boolean isOpen = false;
 
-    private int coins = 50;
+    private int coins = 20;
     private Label coinsLabel;
     private TextButton repairBtn;
 
@@ -24,11 +24,13 @@ public class ShopSystem {
     private boolean hasFasterAttack   = false;
     private boolean hasStrongerAttack = false;
     private boolean hasPierceUpgrade  = false;
+    private int turretsOwned = 0;
 
     private static final int   RANGED_ATTACK_PRICE   = 30;
     private static final int   FASTER_ATTACK_PRICE   = 20;
     private static final int   STRONGER_ATTACK_PRICE = 25;
     private static final int   PIERCE_PRICE          = 35;
+    private static final int   TURRET_PRICE          = 50;
     private static final float REPAIR_COST_PER_HP    = 0.5f;
 
     private final ShopCallback callback;
@@ -40,6 +42,7 @@ public class ShopSystem {
         void onRepairBase();
         int getBaseHp();
         int getBaseHpMax();
+        void onTurretPurchased();
     }
 
     public ShopSystem(Stage stage, Skin skin, ShopCallback callback) {
@@ -85,6 +88,11 @@ public class ShopSystem {
         addUpgradeRow(skin, "Pierce Shot  (passes through enemies)", "Buy: " + PIERCE_PRICE,
             new ClickListener() {
                 @Override public void clicked(InputEvent event, float x, float y) { purchasePierce(); }
+            });
+
+        addUpgradeRow(skin, "Turret  (place a shooting turret)", "Buy: " + TURRET_PRICE,
+            new ClickListener() {
+                @Override public void clicked(InputEvent event, float x, float y) { purchaseTurret(); }
             });
 
         TextButton closeBtn = new TextButton("Close (ESC)", skin);
@@ -148,6 +156,13 @@ public class ShopSystem {
         if (trySpend(PIERCE_PRICE)) hasPierceUpgrade = true;
     }
 
+    private void purchaseTurret() {
+        if (trySpend(TURRET_PRICE)) {
+            turretsOwned++;
+            if (callback != null) callback.onTurretPurchased();
+        }
+    }
+
     private boolean trySpend(int cost) {
         if (coins >= cost) {
             coins -= cost;
@@ -189,4 +204,5 @@ public class ShopSystem {
     public boolean hasFasterAttack()   { return hasFasterAttack; }
     public boolean hasStrongerAttack() { return hasStrongerAttack; }
     public boolean hasPierceUpgrade()  { return hasPierceUpgrade; }
+    public int getTurretsOwned()       { return turretsOwned; }
 }

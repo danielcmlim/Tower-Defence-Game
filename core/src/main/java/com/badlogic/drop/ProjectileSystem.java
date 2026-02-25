@@ -91,9 +91,25 @@ public class ProjectileSystem {
                 Enemy e = enemies.get(j);
 
                 if (pRect.overlaps(new Rectangle(e.x, e.y, enemyW, enemyH))) {
-                    enemySystem.hitEnemy(e, damage, damageTextSystem, particleSystem, shopSystem);
+                    // Tanks eat all projectiles and show BLOCKED
+                    if (e.type == Enemy.Type.TANK) {
+                        damageTextSystem.addText(e.x + enemyW / 2f, e.y + enemyH + 10f, "BLOCKED");
+                        projectiles.removeIndex(i);
+                        consumed = true;
+                        break;
+                    }
 
-                    if (!p.pierces) {
+                    if (!p.hitEnemies.contains(e)) {
+                        p.hitEnemies.add(e);
+                        enemySystem.hitEnemy(e, damage, p.pierces,
+                            damageTextSystem, particleSystem, shopSystem);
+
+                        if (!p.pierces) {
+                            projectiles.removeIndex(i);
+                            consumed = true;
+                            break;
+                        }
+                    } else if (!p.pierces) {
                         projectiles.removeIndex(i);
                         consumed = true;
                         break;
@@ -119,5 +135,6 @@ public class ProjectileSystem {
     static class Projectile {
         float x, y, vx;
         boolean pierces = false;
+        final java.util.HashSet<Enemy> hitEnemies = new java.util.HashSet<>();
     }
 }

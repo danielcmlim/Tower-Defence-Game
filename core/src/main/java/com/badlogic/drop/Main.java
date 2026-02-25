@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -60,7 +61,7 @@ public class Main implements ApplicationListener {
     private final float enemyH             = 28f;
     private final float enemySpeed         = 60f;
     private final int   enemyContactDamage = 10;
-    private final float enemySpawnInterval = 1.5f;
+    private final float enemySpawnInterval = 0.8f;
 
     private Array<Platform> platforms = new Array<>();
     private float[] laneY;
@@ -70,16 +71,25 @@ public class Main implements ApplicationListener {
     private ShopSystem       shopSystem;
     private ProjectileSystem projectileSystem;
     private ParticleSystem   particleSystem;
+    private TurretSystem     turretSystem;
 
     private Stage      stage;
     private Skin       skin;
     private BitmapFont font;
+    private BitmapFont bigFont;
     private Texture    enemyTex;
+
+    private boolean gameOver = false;
+    private final GlyphLayout layout = new GlyphLayout();
 
     @Override
     public void create() {
         batch  = new SpriteBatch();
         shapes = new ShapeRenderer();
+
+        font    = new BitmapFont();
+        bigFont = new BitmapFont();
+        bigFont.getData().setScale(3f);
 
         try {
             playerTex = new Texture("player.png");
@@ -99,7 +109,6 @@ public class Main implements ApplicationListener {
         };
 
         stage = new Stage(new ScreenViewport());
-        font  = new BitmapFont();
         skin  = new Skin();
 
         skin.add("up",   solid(150, 40, new Color(0.18f, 0.18f, 0.18f, 1f)));
@@ -121,7 +130,13 @@ public class Main implements ApplicationListener {
         enemyTex = new Texture(epm);
         epm.dispose();
 
+        initSystems();
+        Gdx.input.setInputProcessor(stage);
+    }
+
+    private void initSystems() {
         damageTextSystem = new DamageTextSystem();
+        turretSystem     = new TurretSystem();
         particleSystem   = new ParticleSystem();
         projectileSystem = new ProjectileSystem();
 
@@ -132,6 +147,11 @@ public class Main implements ApplicationListener {
         enemySystem.startFirstWave();
 
         shopSystem = new ShopSystem(stage, skin, new ShopSystem.ShopCallback() {
+            @Override public void onTurretPurchased() {
+                // Place turret just right of the base
+                float tx = baseX + baseW + 10 + (shopSystem.getTurretsOwned() - 1) * (TurretSystem.Turret.W + 8);
+                turretSystem.placeTurret(tx, baseY);
+            }
             @Override public void onRangedAttackPurchased() {}
             @Override public void onFasterAttackPurchased() {
                 attackCooldown = 0.15f;
@@ -147,13 +167,45 @@ public class Main implements ApplicationListener {
             @Override public int getBaseHp()    { return baseHp; }
             @Override public int getBaseHpMax() { return baseHpMax; }
         });
+    }
 
+    private void resetGame() {
+        // Reset player
+        px = 160; py = 64;
+        vx = 0;   vy = 0;
+        onGround = true;
+        facingRight = true;
+        attackActive = false;
+        attackTimer = 0f;
+        attackCooldown = 0.30f;
+        attackCooldownTimer = 0f;
+        attackDamage = 10;
+
+        // Reset base
+        baseHp = baseHpMax;
+
+        // Dispose and re-create systems
+        if (turretSystem     != null) turretSystem.dispose();
+        if (enemySystem      != null) enemySystem.dispose();
+        if (projectileSystem != null) projectileSystem.dispose();
+        if (particleSystem   != null) particleSystem.dispose();
+
+        // Remove old shop window from stage before creating a new one
+        stage.clear();
         Gdx.input.setInputProcessor(stage);
+
+        gameOver = false;
+        initSystems();
     }
 
     @Override
     public void render() {
         float dt = Math.min(Gdx.graphics.getDeltaTime(), 0.05f);
+
+        if (gameOver) {
+            renderGameOver();
+            return;
+        }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.S) ||
             Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
@@ -167,6 +219,9 @@ public class Main implements ApplicationListener {
         damageTextSystem.update(dt);
         projectileSystem.update(dt, Gdx.graphics.getWidth(), GROUND_Y, platforms);
         particleSystem.update(dt);
+        turretSystem.update(dt, enemySystem.getEnemies(), enemyW, enemyH,
+            damageTextSystem, particleSystem, shopSystem, enemySystem,
+            Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         enemySystem.updateAndSpawn(dt, laneY);
 
         int baseDelta = enemySystem.updateEnemies(
@@ -187,6 +242,11 @@ public class Main implements ApplicationListener {
 
         if (baseDelta != 0) changeBaseHp(baseDelta);
 
+        if (baseHp <= 0) {
+            gameOver = true;
+            return;
+        }
+
         stage.act(dt);
 
         ScreenUtils.clear(0, 0, 0, 1);
@@ -201,6 +261,7 @@ public class Main implements ApplicationListener {
         batch.end();
 
         enemySystem.draw(batch, shapes);
+        turretSystem.draw(batch, shapes);
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
 
@@ -232,9 +293,44 @@ public class Main implements ApplicationListener {
         stage.draw();
     }
 
+    private void renderGameOver() {
+        ScreenUtils.clear(0.05f, 0f, 0f, 1);
+
+        int screenW = Gdx.graphics.getWidth();
+        int screenH = Gdx.graphics.getHeight();
+
+        // Dark red overlay panel
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.15f, 0f, 0f, 1f);
+        shapes.rect(screenW / 2f - 200, screenH / 2f - 100, 400, 200);
+        shapes.end();
+
+        batch.begin();
+
+        // GAME OVER
+        bigFont.setColor(1f, 0.15f, 0.15f, 1f);
+        layout.setText(bigFont, "GAME OVER");
+        bigFont.draw(batch, layout,
+            screenW / 2f - layout.width / 2f,
+            screenH / 2f + layout.height + 20f);
+
+        // Prompt
+        font.setColor(Color.WHITE);
+        layout.setText(font, "Press ENTER to try again");
+        font.draw(batch, layout,
+            screenW / 2f - layout.width / 2f,
+            screenH / 2f - 20f);
+
+        batch.end();
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            resetGame();
+        }
+    }
+
     private void handleInput(float dt) {
-        boolean left      = Gdx.input.isKeyPressed(Input.Keys.A)    || Gdx.input.isKeyPressed(Input.Keys.LEFT);
-        boolean right     = Gdx.input.isKeyPressed(Input.Keys.D)    || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        boolean left      = Gdx.input.isKeyPressed(Input.Keys.LEFT);
+        boolean right     = Gdx.input.isKeyPressed(Input.Keys.RIGHT);
         boolean jump      = Gdx.input.isKeyJustPressed(Input.Keys.UP);
         boolean down      = Gdx.input.isKeyPressed(Input.Keys.DOWN);
         boolean attackKey = Gdx.input.isKeyJustPressed(Input.Keys.J);
@@ -267,6 +363,10 @@ public class Main implements ApplicationListener {
         vy += GRAVITY * dt;
         px += vx * dt;
         py += vy * dt;
+
+        float screenW = Gdx.graphics.getWidth();
+        if (px + PLAYER_W < 0) px = screenW;
+        else if (px > screenW)  px = -PLAYER_W;
 
         onGround = false;
 
@@ -328,8 +428,9 @@ public class Main implements ApplicationListener {
         }
 
         int screenH = Gdx.graphics.getHeight();
+        font.setColor(Color.WHITE);
         font.draw(batch, waveText, 12, screenH - 12);
-        font.draw(batch, "A/D Move | UP Jump | J Melee | K Shoot | S Shop", 12, screenH - 32);
+        font.draw(batch, "LEFT/RIGHT Move | UP Jump | J Melee | K Shoot | S Shop", 12, screenH - 32);
 
         if (shopSystem.hasRangedAttack()) {
             String shotType = shopSystem.hasPierceUpgrade() ? "PIERCE" : "NORMAL";
@@ -370,8 +471,10 @@ public class Main implements ApplicationListener {
         if (stage            != null) stage.dispose();
         if (skin             != null) skin.dispose();
         if (font             != null) font.dispose();
+        if (bigFont          != null) bigFont.dispose();
         if (projectileSystem != null) projectileSystem.dispose();
         if (particleSystem   != null) particleSystem.dispose();
+        if (turretSystem     != null) turretSystem.dispose();
         if (enemySystem      != null) enemySystem.dispose();
     }
 }
