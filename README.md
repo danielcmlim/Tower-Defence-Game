@@ -1,5 +1,7 @@
 # CP12-TowerDefenceGame
 
+A tower defense game where players defend against waves of unique enemies using different weapons, earn currency, and spend it in a shop to upgrade weapons and unlock companions.
+
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
 This project was generated with a template including simple application launchers and an empty `ApplicationListener` implementation.
