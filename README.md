@@ -28,11 +28,10 @@ I want to create a game where players defend their base against increasingly dif
 - Strategic placement and upgrading of defences.
 
 **Controls:**
-
-WASD for Movement 
-J for Melee Attack
-K for Ranged Attack(after bought)
-B FOr Toggle Shop View
+- WASD for Movement 
+- J for Melee Attack
+- K for Ranged Attack(after bought)
+- B FOr Toggle Shop View
 
 **Setting:** A defended base that is constantly attacked by waves of enemies. The environment can change between levels, with different maps introducing new layouts, obstacles, and strategic challenges.
 
