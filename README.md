@@ -2,7 +2,8 @@
 
 **TLDR:** A strategic tower defence game where players defend their base against waves of unique enemies using different weapon upgrades and companions.
 
-**Empathize: **To create a tower defence game that challenges players to use their strategic and mechanical skills to, manage their currency and adapt to different enemy types.
+**Empathize:**
+To create a tower defence game that challenges players to use their strategic and mechanical skills to, manage their currency and adapt to different enemy types.
 
 **Research / Inspiration:**
 
@@ -13,7 +14,8 @@
 **Target Audience:**
 Players aged 12+ who enjoy strategy, action, and tower defence games.
 
-Define: I want to create a game where players defend their base against increasingly difficult waves of enemies. Players earn currency by defeating enemies and can spend it in a shop to purchase and upgrade weapons and companions. Different enemies will have unique abilities and weaknesses, requiring players to change their strategy depending on the wave.
+**Define:**
+I want to create a game where players defend their base against increasingly difficult waves of enemies. Players earn currency by defeating enemies and can spend it in a shop to purchase and upgrade weapons and companions. Different enemies will have unique abilities and weaknesses, requiring players to change their strategy depending on the wave.
 
 **Gameplay / Features:**
 
