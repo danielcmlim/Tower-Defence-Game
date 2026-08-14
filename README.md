@@ -1,4 +1,4 @@
-# CP12-TowerDefenceGame
+# Tower Defence Game
 
 **TLDR:** A strategic tower defence game where players defend their base against waves of unique enemies using different weapon upgrades and companions.
 
