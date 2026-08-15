@@ -1,39 +1,48 @@
 # Tower Defence Game
+
 <img src="towerdefence%20ss1.png" alt="Tower Defence Gameplay" width="500">
-**TLDR:** A strategic tower defence game where players defend their base against waves of unique enemies using different weapon upgrades and companions.
+
+**TLDR:** A strategic tower defence game where players defend their base against increasingly difficult waves of enemies using different weapons, upgrades, and companions. Players must adapt their strategy based on each enemy's unique strengths and weaknesses.
 
 **Empathize:**
-To create a tower defence game that challenges players to use their strategic and mechanical skills to, manage their currency and adapt to different enemy types.
+I wanted to create a tower defence game that challenges players to think strategically, manage their resources, and adapt their approach to different enemy types.
 
 **Research / Inspiration:**
 
-- Bloons TD 6: Inspired by the variety of enemies and upgrades
-- Plants vs. Zombies: Like the simple but strategic gameplay and progressively harder waves
-- Valorant: Buy/Shop system for better means of defending against enemies
+- **Bloons TD 6:** Inspired by its variety of enemies, towers, and upgrade systems.
+- **Plants vs. Zombies:** Inspired by its simple but strategic gameplay and progressively challenging waves.
+- **Valorant:** Inspired by its shop system, where players manage currency to purchase equipment that changes how they approach each round.
 
 **Target Audience:**
 Players aged 12+ who enjoy strategy, action, and tower defence games.
 
 **Define:**
-I want to create a game where players defend their base against increasingly difficult waves of enemies. Players earn currency by defeating enemies and can spend it in a shop to purchase and upgrade weapons and companions. Different enemies will have unique abilities and weaknesses, requiring players to change their strategy depending on the wave.
+I wanted to create a game where players defend their base against increasingly difficult waves of enemies. Players earn currency by defeating enemies and can spend it in the shop to purchase and upgrade weapons and companions.
+
+Each enemy type has different abilities, strengths, and weaknesses, requiring players to change their strategy depending on the enemies they encounter.
 
 **Gameplay / Features:**
 
-- Multiple unique enemy types with different abilities and weaknesses.
-- Different weapons/towers designed for different situations.
-- Currency earned from defeating enemies.
-- Shop for purchasing weapons, upgrades, and companions.
-- Companion system that gives the player can buy for more help defending their base.
+- Multiple enemy types with unique abilities, strengths, and weaknesses.
+- **Ranged Enemy:** Attacks the player from a distance, requiring players to manage positioning and movement.
+- **Shielded Enemy:** Can withstand **two normal melee attacks**, requiring players to deal with it differently from standard enemies.
+- **Armored Enemy:** Can withstand **three normal melee attacks** and is **immune to ranged attacks**, encouraging players to use melee attacks and adapt their strategy.
+- Different weapons designed for different combat situations.
+- Currency earned by defeating enemies.
+- Shop system for purchasing weapons, upgrades, and companions.
+- Companion system that provides additional support during combat.
 - Increasingly difficult waves of enemies.
-- Strategic placement and upgrading of defences.
+- Strategic resource management and combat decisions.
 
 **Controls:**
-- WASD for Movement 
-- J for Melee Attack
-- K for Ranged Attack(after bought)
-- B FOr Toggle Shop View
 
-**Setting:** A defended base that is constantly attacked by waves of enemies. The environment can change between levels, with different maps introducing new layouts, obstacles, and strategic challenges.
+- `WASD` — Movement
+- `J` — Melee Attack
+- `K` — Ranged Attack (after purchasing)
+- `B` — Toggle Shop
+
+**Setting:**
+A defended base that is constantly attacked by waves of enemies. As the game progresses, players face increasingly challenging combinations of enemies, requiring them to adapt their weapons, positioning, and strategy to survive.
 
 # libGDX
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
