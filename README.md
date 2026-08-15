@@ -24,7 +24,7 @@ Each enemy type has different abilities, strengths, and weaknesses, requiring pl
 **Gameplay / Features:**
 
 - Multiple enemy types with unique abilities, strengths, and weaknesses.
-- **Ranged Enemy:** Attacks the player from a distance, requiring players to manage positioning and movement.
+- **Ranged Enemy:** Attacks the player's base from a distance, requiring players to manage positioning and movement.
 - **Shielded Enemy:** Can withstand **two normal melee attacks**, requiring players to deal with it differently from standard enemies.
 - **Armored Enemy:** Can withstand **three normal melee attacks** and is **immune to ranged attacks**, encouraging players to use melee attacks and adapt their strategy.
 - Different weapons designed for different combat situations.
