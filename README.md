@@ -1,5 +1,5 @@
 # Tower Defence Game
-![Tower Defence Gameplay](towerdefence%20ss1.png)
+<img src="towerdefence%20ss1.png" alt="Tower Defence Gameplay" width="500">
 **TLDR:** A strategic tower defence game where players defend their base against waves of unique enemies using different weapon upgrades and companions.
 
 **Empathize:**
