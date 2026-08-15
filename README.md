@@ -36,10 +36,10 @@ Each enemy type has different abilities, strengths, and weaknesses, requiring pl
 
 **Controls:**
 
-- `WASD` — Movement
+- `Arrow Keys` — Movement
 - `J` — Melee Attack
 - `K` — Ranged Attack (after purchasing)
-- `B` — Toggle Shop
+- `S` — Toggle Shop
 
 **Setting:**
 A defended base that is constantly attacked by waves of enemies. As the game progresses, players face increasingly challenging combinations of enemies, requiring them to adapt their weapons, positioning, and strategy to survive.
