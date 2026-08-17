@@ -31,7 +31,7 @@ The game challenges players to adapt their strategy to enemies with different st
 
 | Key | Action |
 |---|---|
-| `Arrow Keys` | Move |
+| `WASD` | Move |
 | `J` | Melee attack |
 | `K` | Ranged attack — available after purchase |
 | `S` | Open or close the shop |
