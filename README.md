@@ -38,10 +38,10 @@ The game challenges players to adapt their strategy to enemies with different st
 
 ## Technologies
 
-- Java
+- [Java](https://www.java.com/)
 - [libGDX](https://libgdx.com/)
-- Gradle
-- LWJGL3
+- [Gradle](https://gradle.org/)
+- [LWJGL3](https://www.lwjgl.org/)
 
 ## Running the Project
 
