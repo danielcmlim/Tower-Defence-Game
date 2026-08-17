@@ -1,78 +1,97 @@
 # Tower Defence Game
 
-<img src="towerdefence%20ss1.png" alt="Tower Defence Gameplay" width="500">
+<p align="center">
+  <img src="towerdefence%20ss1.png" alt="Gameplay screenshot from Tower Defence Game" width="700">
+</p>
 
-**TLDR:** A strategic tower defence game where players defend their base against increasingly difficult waves of enemies using different weapons, upgrades, and companions. Players must adapt their strategy based on each enemy's unique strengths and weaknesses.
+A strategic tower-defence game built with **Java** and **libGDX**. Defend your base against increasingly difficult enemy waves, earn currency through combat and spend it on weapons, upgrades and companions.
 
-**Empathize:**
-I wanted to create a tower defence game that challenges players to think strategically, manage their resources, and adapt their approach to different enemy types.
+## Overview
 
-**Research / Inspiration:**
+The game challenges players to adapt their strategy to enemies with different strengths and weaknesses. Progression depends on balancing combat decisions, positioning, weapon choices and resource management.
 
-- **Bloons TD 6:** Inspired by its variety of enemies, towers, and upgrade systems.
-- **Plants vs. Zombies:** Inspired by its simple but strategic gameplay and progressively challenging waves.
-- **Valorant:** Inspired by its shop system, where players manage currency to purchase equipment that changes how they approach each round.
+## Features
 
-**Target Audience:**
-Players aged 12+ who enjoy strategy, action, and tower defence games.
+- Increasingly difficult waves of enemies
+- Currency earned by defeating enemies
+- Shop system for purchasing weapons, upgrades and companions
+- Multiple weapons for different combat situations
+- Companion system that supports the player during combat
+- Strategic decisions based on enemy abilities and defences
 
-**Define:**
-I wanted to create a game where players defend their base against increasingly difficult waves of enemies. Players earn currency by defeating enemies and can spend it in the shop to purchase and upgrade weapons and companions.
+## Enemy Types
 
-Each enemy type has different abilities, strengths, and weaknesses, requiring players to change their strategy depending on the enemies they encounter.
+| Enemy | Behaviour | Strategy required |
+|---|---|---|
+| Ranged enemy | Attacks the player's base from a distance | Manage positioning and movement |
+| Shielded enemy | Can withstand two normal melee attacks | Use attacks efficiently and plan combat |
+| Armoured enemy | Can withstand three normal melee attacks and is immune to ranged attacks | Use melee attacks and adapt weapon choice |
 
-**Gameplay / Features:**
+## Controls
 
-- Multiple enemy types with unique abilities, strengths, and weaknesses.
-- **Ranged Enemy:** Attacks the player's base from a distance, requiring players to manage positioning and movement.
-- **Shielded Enemy:** Can withstand **two normal melee attacks**, requiring players to deal with it differently from standard enemies.
-- **Armored Enemy:** Can withstand **three normal melee attacks** and is **immune to ranged attacks**, encouraging players to use melee attacks and adapt their strategy.
-- Different weapons designed for different combat situations.
-- Currency earned by defeating enemies.
-- Shop system for purchasing weapons, upgrades, and companions.
-- Companion system that provides additional support during combat.
-- Increasingly difficult waves of enemies.
-- Strategic resource management and combat decisions.
+| Key | Action |
+|---|---|
+| `Arrow Keys` | Move |
+| `J` | Melee attack |
+| `K` | Ranged attack — available after purchase |
+| `S` | Open or close the shop |
 
-**Controls:**
+## Technologies
 
-- `Arrow Keys` — Movement
-- `J` — Melee Attack
-- `K` — Ranged Attack (after purchasing)
-- `S` — Toggle Shop
+- Java
+- [libGDX](https://libgdx.com/)
+- Gradle
+- LWJGL3
 
-**Setting:**
-A defended base that is constantly attacked by waves of enemies. As the game progresses, players face increasingly challenging combinations of enemies, requiring them to adapt their weapons, positioning, and strategy to survive.
+## Running the Project
 
-# libGDX
-A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
+### Requirements
 
-This project was generated with a template including simple application launchers and an empty `ApplicationListener` implementation.
+- Java Development Kit (JDK)
+- Git
+- No separate Gradle installation is required because this project includes the Gradle wrapper.
 
-## Platforms
+### Run on desktop
 
-- `core`: Main module with the application logic shared by all platforms.
-- `lwjgl3`: Primary desktop platform using LWJGL3; was called 'desktop' in older docs.
+From the project root, run:
 
-## Gradle
+```bash
+# macOS / Linux
+./gradlew lwjgl3:run
+```
 
-This project uses [Gradle](https://gradle.org/) to manage dependencies.
-The Gradle wrapper was included, so you can run Gradle tasks using `gradlew.bat` or `./gradlew` commands.
-Useful Gradle tasks and flags:
+```bat
+:: Windows
+gradlew.bat lwjgl3:run
+```
 
-- `--continue`: when using this flag, errors will not stop the tasks from running.
-- `--daemon`: thanks to this flag, Gradle daemon will be used to run chosen tasks.
-- `--offline`: when using this flag, cached dependency archives will be used.
-- `--refresh-dependencies`: this flag forces validation of all dependencies. Useful for snapshot versions.
-- `build`: builds sources and archives of every project.
-- `cleanEclipse`: removes Eclipse project data.
-- `cleanIdea`: removes IntelliJ project data.
-- `clean`: removes `build` folders, which store compiled classes and built archives.
-- `eclipse`: generates Eclipse project data.
-- `idea`: generates IntelliJ project data.
-- `lwjgl3:jar`: builds application's runnable jar, which can be found at `lwjgl3/build/libs`.
-- `lwjgl3:run`: starts the application.
-- `test`: runs unit tests (if any).
+### Build a runnable JAR
 
-Note that most tasks that are not specific to a single project can be run with `name:` prefix, where the `name` should be replaced with the ID of a specific project.
-For example, `core:clean` removes `build` folder only from the `core` project.
+```bash
+# macOS / Linux
+./gradlew lwjgl3:jar
+```
+
+```bat
+:: Windows
+gradlew.bat lwjgl3:jar
+```
+
+The generated JAR will be placed in:
+
+```text
+lwjgl3/build/libs
+```
+
+## Project Structure
+
+- `core` — Shared game logic, entities, screens and gameplay systems
+- `lwjgl3` — Desktop launcher built with LWJGL3
+
+## Inspiration
+
+The game draws inspiration from:
+
+- **Bloons TD 6** — enemy variety, defensive systems and upgrades
+- **Plants vs. Zombies** — accessible strategic gameplay and escalating waves
+- **Valorant** — round-based currency management and purchasing decisions
