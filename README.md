@@ -50,6 +50,14 @@ The game challenges players to adapt their strategy to enemies with different st
 - [Gradle](https://gradle.org/)
 - [LWJGL3](https://www.lwjgl.org/)
 
+## What I Learned
+
+- Building a game using Java and libGDX
+- Designing gameplay systems such as enemies, weapons, shops and progression
+- Applying object-oriented programming to organise game entities and systems
+- Implementing combat mechanics and collision detection
+- Managing game state and debugging gameplay interactions
+
 ## Running the Project
 
 ### Requirements
